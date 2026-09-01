@@ -5,25 +5,55 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
+    <title>Interactive Particle Gravitation Simulation</title>
+    <meta name="description"
+        content="A real-time, interactive 2D particle physics and gravitation simulation built with HTML5 Canvas and JavaScript.">
+    <meta name="keywords"
+        content="particle simulation, gravity simulation, physics engine, html5 canvas, interactive web simulation">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://particle.web.mhergh.com/">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://particle.web.mhergh.com/">
+    <meta property="og:title" content="Interactive Particle Gravitation Simulation">
+    <meta property="og:description"
+        content="Real-time 2D physics simulation of gravitational attraction, collisions, and particle dynamics.">
+    <meta property="twitter:card" content="summary_large_image">
+
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Particle Gravitation Simulation",
+      "url": "https://particle.web.mhergh.com",
+      "description": "Interactive real-time 2D particle gravity and physics engine running in the browser.",
+      "applicationCategory": "Simulation",
+      "operatingSystem": "All"
+    }
+    </script>
+
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <script src=" https://cdn.jsdelivr.net/npm/noisejs@2.1.0/index.min.js "></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-
-    <title>Particle Simulation</title>
 </head>
 
 <body class="bg-red-900 text-white grow min-h-svh overflow-hidden">
 
+    <h1 class="sr-only">Interactive Particle Gravitation Simulation</h1>
+
     <canvas id="canvas" class="grow bg-black select-none touch-none" width="1" height="1"></canvas>
 
-    <div id="menu_open_button" class="fixed sm:top-0 sm:left-0 max-sm:bottom-0 max-sm:right-0 m-2 p-5 bg-blue-500 select-none bg-white/10 aspect-square rounded-2xl hover:bg-white/15">
+    <div id="menu_open_button"
+        class="fixed sm:top-0 sm:left-0 max-sm:bottom-0 max-sm:right-0 m-2 p-5 bg-blue-500 select-none bg-white/10 aspect-square rounded-2xl hover:bg-white/15">
         <i class="text-5xl" data-lucide="hamburger"></i>
     </div>
 
-    <div id="menu_close_root" class="flex flex-col absolute inset-0 bg-white/7 rounded-2xl md:w-100 md:rounded-2xl hidden overflow-scroll sm:w-full sm:rounded-none">
+    <div id="menu_close_root"
+        class="flex flex-col absolute inset-0 bg-white/7 rounded-2xl md:w-100 md:rounded-2xl hidden overflow-scroll sm:w-full sm:rounded-none">
         <div class="grow flex flex-col gap-15 m-5 justify-between">
             <div class="flex flex-col gap-5">
-                <div id="menu_close_button" class="flex gap-1 bg-black text-white border-1 border-white/50 rounded-md p-1 hover:bg-gray-800 active:bg-gray-900 select-none justify-center">
+                <div id="menu_close_button"
+                    class="flex gap-1 bg-black text-white border-1 border-white/50 rounded-md p-1 hover:bg-gray-800 active:bg-gray-900 select-none justify-center">
                     <i data-lucide="X"></i>
                 </div>
             </div>
@@ -38,8 +68,8 @@
                 </div>
                 <div class="flex flex-col gap-1">
                     <span class="font-bold">Gravitation (Pixels per Second Squared))</span>
-                    <input id="gravitation" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="text"
-                        value="2000.0">
+                    <input id="gravitation" class="bg-black text-white border-1 border-white/50 rounded-md p-1"
+                        type="text" value="2000.0">
                 </div>
                 <div class="flex flex-col gap-1">
                     <span class="font-bold">Gravitation Radius (Pixels)</span>
@@ -53,13 +83,13 @@
                 </div>
                 <div class="flex flex-col gap-1">
                     <span class="font-bold">Elasticity (0% - 100%)</span>
-                    <input id="elasticity" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="range"
-                        value="0.9" min="0" max="1" step="0.01">
+                    <input id="elasticity" class="bg-black text-white border-1 border-white/50 rounded-md p-1"
+                        type="range" value="0.9" min="0" max="1" step="0.01">
                 </div>
                 <div class="flex flex-col gap-1">
                     <span class="font-bold">Roughness (0% - 100%)</span>
-                    <input id="roughness" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="range"
-                        value="0.9" min="0" max="1" step="0.01">
+                    <input id="roughness" class="bg-black text-white border-1 border-white/50 rounded-md p-1"
+                        type="range" value="0.9" min="0" max="1" step="0.01">
                 </div>
                 <div class="flex flex-col gap-1">
                     <span class="font-bold">Reset Simulation</span>
@@ -78,8 +108,8 @@
                 </div>
                 <div class="flex flex-col gap-1">
                     <span class="font-bold">Delta Time (Seconds)</span>
-                    <input id="time_delta" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="text"
-                        disabled>
+                    <input id="time_delta" class="bg-black text-white border-1 border-white/50 rounded-md p-1"
+                        type="text" disabled>
                 </div>
                 <div class="flex flex-col gap-1">
                     <span class="font-bold">Version</span>
@@ -88,8 +118,8 @@
                 </div>
                 <div class="flex flex-col gap-1">
                     <span class="font-bold">Currently in Range</span>
-                    <input id="paticle_count_in_range" class="bg-black text-white border-1 border-white/50 rounded-md p-1"
-                        type="text" disabled>
+                    <input id="paticle_count_in_range"
+                        class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="text" disabled>
                 </div>
             </div>
         </div>
