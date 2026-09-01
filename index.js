@@ -174,10 +174,20 @@ class Particle {
             this.velocity.addVector(acceleration)
         }
 
-        const friction_vector = this.velocity.getCopy()
-            .normalize()
-            .multiplyValue(friction * time_delta)
-        this.velocity.subtractVector(friction_vector)
+        if (this.velocity.getLength() > 0.0) {
+            const friction_vector = this.velocity.getCopy()
+                .normalize()
+                .multiplyValue(-1)
+                .multiplyValue(friction * time_delta)
+
+            this.velocity.addVector(friction_vector)
+
+            const direction_velocity = this.velocity.getCopy().normalize()
+            const direction_friction = friction_vector.getCopy().normalize()
+            const dot = direction_velocity.getDotProduct(direction_friction)
+            if (dot >= 0.9999)
+                this.velocity.setComponents(0.0, 0.0)
+        }
 
         this.position.addVector(this.velocity.getCopy().multiplyValue(time_delta))
 
@@ -211,7 +221,7 @@ class Particle {
 
     render(context, time_delta) {
         context.moveTo(this.position_previous.x, this.position_previous.y)
-        context.lineTo(this.position.x + 1, this.position.y + 1)
+        context.lineTo(this.position.x, this.position.y)
     }
 }
 
@@ -231,6 +241,7 @@ const canvas = document.getElementById("canvas")
 
 const information_time_delta = document.getElementById("time_delta")
 const information_fps = document.getElementById("fps")
+const information_particle_count_in_range = document.getElementById("paticle_count_in_range")
 
 let canvas_width = canvas.width
 let canvas_height = canvas.height
@@ -326,7 +337,7 @@ function getIntensity(position) {
         .subtractVector(position)
         .getLength()
 
-    return 1.0 / (distance * distance)
+    return 1.0 / (distance)
 }
 
 function getAcceleration(position) {
@@ -345,11 +356,17 @@ context.fillStyle = "white"
 context.strokeStyle = "white"
 
 function update(time_delta) {
-    information_time_delta.value = time_delta
-    information_fps.value = 1.0 / time_delta
+    information_time_delta.value = Math.round(time_delta * 10000.0) / 10000.0
+    information_fps.value = Math.round((1.0 / time_delta))
 
-    for (const particle of particles)
+    let count = 0
+    for (const particle of particles) {
         particle.update(time_delta)
+        if (mouse_position.getCopy().subtractVector(particle.position).getLength() <= gravitation_radius)
+            count++
+    }
+
+    information_particle_count_in_range.value = count
 }
 
 function render(time_delta) {
@@ -369,7 +386,7 @@ function render(time_delta) {
         context.strokeStyle = "#222222"
 
         context.beginPath()
-        context.arc(mouse_position.x, mouse_position.y, gravitation_radius, 0, 2 * Math.PI)
+        context.arc(mouse_position.x, mouse_position.y, gravitation_radius, 0.0, 2.0 * Math.PI)
         context.stroke()
     }
 }
