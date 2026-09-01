@@ -287,6 +287,34 @@ canvas.addEventListener("mouseup", (event) => {
 canvas.addEventListener("mouseleave", (event) => {
     enabled = false
 })
+canvas.addEventListener("touchstart", (event) => {
+    const touch = event.touches[0]
+
+    const rectangle = event.target.getBoundingClientRect()
+
+    mouse_position.setComponents(
+        touch.clientX - rectangle.left,
+        touch.clientY - rectangle.top
+    )
+
+    enabled = true
+})
+canvas.addEventListener("touchend", (event) => {
+    enabled = false
+})
+canvas.addEventListener("touchmove", (event) => {
+    const touch = event.touches[0]
+
+    const rectangle = event.target.getBoundingClientRect()
+
+    mouse_position.setComponents(
+        touch.clientX - rectangle.left,
+        touch.clientY - rectangle.top
+    )
+})
+canvas.addEventListener("touchcancel", (event) => {
+    enabled = false
+})
 
 
 let gravitation = 0
