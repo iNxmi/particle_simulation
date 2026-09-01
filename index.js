@@ -103,6 +103,20 @@ class Vector {
         return this
     }
 
+    dot(vector) {
+        return this.x * vector.x + this.y * vector.y 
+    }
+
+    reflect(normal) {
+
+        const d = this.getCopy()
+        const n = normal.getCopy()
+
+        const r = d.subtractVector(n.multiplyValue(2 * (d.dot(n))))
+
+        return this.setVector(r)
+    }
+
     getNormalized() {
         return this.getCopy().normalize()
     }
@@ -144,22 +158,26 @@ class Particle {
         this.position.addVector(this.velocity.getCopy().multiplyValue(time_delta))
 
         if (this.position.x < 0.0) {
-            this.velocity.x *= -elasticity
+            const normal = new Vector().setComponents(1, 0)
+            this.velocity.reflect(normal)
             this.position.x = 0.0
         }
 
         if (this.position.x >= canvas_width) {
-            this.velocity.x *= -elasticity
+            const normal = new Vector().setComponents(-1, 0)
+            this.velocity.reflect(normal)
             this.position.x = canvas_width - 1
         }
 
         if (this.position.y < 0.0) {
-            this.velocity.y *= -elasticity
+            const normal = new Vector().setComponents(0, 1)
+            this.velocity.reflect(normal)
             this.position.y = 0.0
         }
 
         if (this.position.y >= canvas_height) {
-            this.velocity.y *= -elasticity
+            const normal = new Vector().setComponents(0, -1)
+            this.velocity.reflect(normal)
             this.position.y = canvas_height - 1
         }
 
@@ -334,4 +352,12 @@ function loop(time_now_ms) {
 
     requestAnimationFrame(loop)
 }
+
+const incident = new Vector().setComponents(4, -3)
+console.log(incident)
+const normal = new Vector().setComponents(0, 1)
+console.log(normal)
+incident.reflect(normal)
+console.log(incident)
+
 requestAnimationFrame(loop)
