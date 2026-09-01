@@ -221,7 +221,7 @@ class Particle {
 
     render(context, time_delta) {
         context.moveTo(this.position_previous.x, this.position_previous.y)
-        context.lineTo(this.position.x, this.position.y)
+        context.lineTo(this.position.x + 1, this.position.y + 1)
     }
 }
 
@@ -235,6 +235,7 @@ const settings_gravitation_radius = document.getElementById("gravitation_radius"
 const settings_friction = document.getElementById("friction")
 const settings_elasticity = document.getElementById("elasticity")
 const settings_roughness = document.getElementById("roughness")
+const settings_reset = document.getElementById("reset")
 // mass
 
 const canvas = document.getElementById("canvas")
@@ -320,6 +321,20 @@ function updateParticles() {
 settings_number_of_particles.onchange = updateParticles
 updateParticles()
 
+settings_reset.onclick = updateParticles 
+
+function getIntensitySin(position) {
+    const distance = mouse_position.getCopy()
+        .subtractVector(position)
+        .getLength()
+
+    if (distance > gravitation_radius)
+        return 0.0
+
+    const x = clamp(distance / gravitation_radius, 0.0, 1.0)
+    return Math.sin(x * Math.PI * 5) / 2 + 0.5
+}
+
 function getIntensityOld(position) {
     const distance = mouse_position.getCopy()
         .subtractVector(position)
@@ -357,7 +372,7 @@ context.strokeStyle = "white"
 
 function update(time_delta) {
     information_time_delta.value = Math.round(time_delta * 10000.0) / 10000.0
-    information_fps.value = Math.round((1.0 / time_delta))
+    information_fps.value = Math.round(1.0 / time_delta)
 
     let count = 0
     for (const particle of particles) {
