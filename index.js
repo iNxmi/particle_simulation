@@ -168,7 +168,7 @@ class Particle {
     update(time_delta) {
         this.position_previous.setVector(this.position)
 
-        if (enabled) {
+        if (enabled && mouse_position.getCopy().subtractVector(this.position).getLength() <= gravitation_radius) {
             const acceleration = getAcceleration(this.position)
                 .multiplyValue(time_delta)
             this.velocity.addVector(acceleration)
