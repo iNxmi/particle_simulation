@@ -103,8 +103,21 @@ class Vector {
         return this
     }
 
+    rotate(radian) {
+        const cos = Math.cos(radian)
+        const sin = Math.sin(radian)
+
+        const x_new = this.x * cos - this.y * sin
+        const y_new = this.x * sin + this.y * cos
+
+        this.x = x_new
+        this.y = y_new
+
+        return this
+    }
+
     getDotProduct(vector) {
-        return this.x * vector.x + this.y * vector.y 
+        return this.x * vector.x + this.y * vector.y
     }
 
     reflect(normal) {
@@ -123,6 +136,19 @@ class Vector {
         return new Vector().setVector(this)
     }
 
+}
+
+const UP = new Vector().setComponents(0, -1)
+const DOWN = new Vector().setComponents(0, 1)
+const LEFT = new Vector().setComponents(-1, 0)
+const RIGHT = new Vector().setComponents(1, 0)
+
+function getRoughNormal(normal) {
+    const random = Math.random() * 2.0 - 1.0
+    const degree = 90.0 * roughness * random
+    const radian = degree * Math.PI / 180.0
+
+    return normal.getCopy().rotate(radian)
 }
 
 class Particle {
@@ -156,26 +182,26 @@ class Particle {
         this.position.addVector(this.velocity.getCopy().multiplyValue(time_delta))
 
         if (this.position.x < 0.0) {
-            const normal = new Vector().setComponents(1, 0)
+            const normal = getRoughNormal(RIGHT)
+            console.log(normal.getLength())
             this.velocity.reflect(normal).multiplyValue(elasticity)
-
             this.position.x = 0.0
         }
 
         if (this.position.x >= canvas_width) {
-            const normal = new Vector().setComponents(-1, 0)
+            const normal = getRoughNormal(LEFT)
             this.velocity.reflect(normal).multiplyValue(elasticity)
             this.position.x = canvas_width - 1
         }
 
         if (this.position.y < 0.0) {
-            const normal = new Vector().setComponents(0, 1)
+            const normal = getRoughNormal(DOWN)
             this.velocity.reflect(normal).multiplyValue(elasticity)
             this.position.y = 0.0
         }
 
         if (this.position.y >= canvas_height) {
-            const normal = new Vector().setComponents(0, -1)
+            const normal = getRoughNormal(UP)
             this.velocity.reflect(normal).multiplyValue(elasticity)
             this.position.y = canvas_height - 1
         }
@@ -199,7 +225,7 @@ const settings_gravitation = document.getElementById("gravitation")
 const settings_gravitation_radius = document.getElementById("gravitation_radius")
 const settings_friction = document.getElementById("friction")
 const settings_elasticity = document.getElementById("elasticity")
-// roughness (for walls)
+const settings_roughness = document.getElementById("roughness")
 // mass
 
 const canvas = document.getElementById("canvas")
@@ -258,11 +284,19 @@ updateFriction()
 
 let elasticity = 0
 function updateElasticity() {
-    elasticity = Math.min(Math.max(Number(settings_elasticity.value), 0.0), 1.0)
+    elasticity = clamp(Number(settings_elasticity.value), 0.0, 1.0)
     settings_elasticity.value = elasticity
 }
 settings_elasticity.onchange = updateElasticity
 updateElasticity()
+
+let roughness = 0
+function updateRoughness() {
+    roughness = clamp(Number(settings_roughness.value), 0.0, 1.0)
+    settings_roughness.value = roughness
+}
+settings_roughness.onchange = updateRoughness
+updateRoughness()
 
 let particles = []
 function updateParticles() {
@@ -333,7 +367,7 @@ function render(time_delta) {
     }
 
     if (enabled) {
-        context.strokeStyle = "white"
+        context.strokeStyle = "#222222"
 
         context.beginPath()
         context.arc(mouse_position.x, mouse_position.y, gravitation_radius, 0, 2 * Math.PI)
