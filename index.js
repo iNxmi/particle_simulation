@@ -183,7 +183,6 @@ class Particle {
 
         if (this.position.x < 0.0) {
             const normal = getRoughNormal(RIGHT)
-            console.log(normal.getLength())
             this.velocity.reflect(normal).multiplyValue(elasticity)
             this.position.x = 0.0
         }
