@@ -1,3 +1,5 @@
+lucide.createIcons()
+
 class Vector {
 
     constructor() {
@@ -154,8 +156,8 @@ function getRoughNormal(normal) {
 class Particle {
     constructor() {
         this.position = new Vector().setComponents(
-            Math.random() * canvas_width,
-            Math.random() * canvas_height
+            Math.random() * canvas.width,
+            Math.random() * canvas.height
         )
 
         this.position_previous = new Vector().setVector(this.position)
@@ -197,10 +199,10 @@ class Particle {
             this.position.x = 0.0
         }
 
-        if (this.position.x >= canvas_width) {
+        if (this.position.x >= canvas.width) {
             const normal = getRoughNormal(LEFT)
             this.velocity.reflect(normal).multiplyValue(elasticity)
-            this.position.x = canvas_width - 1
+            this.position.x = canvas.width - 1
         }
 
         if (this.position.y < 0.0) {
@@ -209,10 +211,10 @@ class Particle {
             this.position.y = 0.0
         }
 
-        if (this.position.y >= canvas_height) {
+        if (this.position.y >= canvas.height) {
             const normal = getRoughNormal(UP)
             this.velocity.reflect(normal).multiplyValue(elasticity)
-            this.position.y = canvas_height - 1
+            this.position.y = canvas.height - 1
         }
 
         const speed = this.velocity.getLength()
@@ -239,13 +241,17 @@ const settings_reset = document.getElementById("reset")
 // mass
 
 const canvas = document.getElementById("canvas")
+const canvas_parent = canvas.parentNode
+window.addEventListener("resize", (event) => {
+    canvas.width = canvas_parent.offsetWidth
+    canvas.height = canvas_parent.offsetHeight
+})
+canvas.width = canvas_parent.offsetWidth
+canvas.height = canvas_parent.offsetHeight
 
 const information_time_delta = document.getElementById("time_delta")
 const information_fps = document.getElementById("fps")
 const information_particle_count_in_range = document.getElementById("paticle_count_in_range")
-
-let canvas_width = canvas.width
-let canvas_height = canvas.height
 
 const mouse_position = new Vector()
 canvas.addEventListener("mousemove", (event) => {
@@ -255,6 +261,20 @@ canvas.addEventListener("mousemove", (event) => {
         event.clientX - rectangle.left,
         event.clientY - rectangle.top
     )
+})
+
+const menu_close_root = document.getElementById("menu_close_root")
+
+const menu_open_button = document.getElementById("menu_open_button")
+menu_open_button.addEventListener("click", (event) => {
+    menu_open_button.classList.add("hidden")
+    menu_close_root.classList.remove("hidden")
+})
+
+const menu_close_button = document.getElementById("menu_close_button")
+menu_close_button.addEventListener("click", (event) => {
+    menu_open_button.classList.remove("hidden")
+    menu_close_root.classList.add("hidden")
 })
 
 let enabled = false
@@ -321,7 +341,7 @@ function updateParticles() {
 settings_number_of_particles.onchange = updateParticles
 updateParticles()
 
-settings_reset.onclick = updateParticles 
+settings_reset.onclick = updateParticles
 
 function getIntensitySin(position) {
     const distance = mouse_position.getCopy()
@@ -385,7 +405,7 @@ function update(time_delta) {
 }
 
 function render(time_delta) {
-    context.clearRect(0, 0, canvas_width, canvas_height)
+    context.clearRect(0, 0, canvas.width, canvas.height)
 
     const sorted = Object.groupBy(particles, ({ degree }) => degree)
     for (const [degree, p] of Object.entries(sorted)) {
