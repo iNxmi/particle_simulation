@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <title>Coding Practice - Day 02</title>
+</head>
+
+<body class="bg-black m-5 text-white">
+    <div class="flex flex-col justify-center min-h-svh gap-5">
+        <div class="flex gap-5">
+
+            <div class="flex-1 flex flex-col gap-5">
+                <h2 class="text-3xl font-bold text-center">Settings</h2>
+                <div class="flex flex-col gap-1">
+                    <span class="font-bold">Number of Particles</span>
+                    <input id="number_of_particles" class="grow bg-black text-white border-1 border-white rounded-md p-1" type="text" value="2000.0">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <span class="font-bold">Gravitation (Pixels per Second Squared))</span>
+                    <input id="gravitation" class="bg-black text-white border-1 border-white rounded-md p-1" type="text" value="2000.0">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <span class="font-bold">Gravitation Radius (Pixels)</span>
+                    <input id="gravitation_radius" class="bg-black text-white border-1 border-white rounded-md p-1" type="text" value="300.0">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <span class="font-bold">Friction (Pixels per Second)</span>
+                    <input id="friction" class="bg-black text-white border-1 border-white rounded-md p-1" type="text" value="300.0">
+                </div>
+                <div class="flex flex-col gap-1">
+                    <span class="font-bold">Elasticity (0% - 100%)</span>
+                    <input id="elasticity" class="bg-black text-white border-1 border-white rounded-md p-1" type="range" value="0.9" min="0" max="1"
+                        step="0.01">
+                </div>
+            </div>
+
+            <canvas id="canvas" class="flex-1 bg-black border-solid border-1 border-white rounded-xl" width="800" height="800"></canvas>
+
+            <div class="flex-1 flex flex-col gap-5">
+                <h2 class="text-3xl font-bold text-center">Information</h2>
+                <div class="flex flex-col gap-1">
+                    <span class="font-bold">FPS</span>
+                    <input id="fps" class="bg-black text-white border-1 border-white rounded-md p-1" type="text"  disabled>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <span class="font-bold">Delta Time (s)</span>
+                    <input id="time_delta" class="bg-black text-white border-1 border-white rounded-md p-1" type="text"  disabled>
+                </div>
+                <div class="flex flex-col gap-1">
+                    <span class="font-bold">Version</span>
+                    <input class="bg-black text-white border-1 border-white rounded-md p-1" type="text" value="1.0.1" disabled>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</body>
+
+<script src="index.js"></script>
+
+</html>
