@@ -1,26 +1,180 @@
-function vector(x, y) {
-    return {x: x, y: y}
+class Vector {
+
+    constructor() {
+        this.x = 0.0
+        this.y = 0.0
+    }
+
+
+    setComponents(x, y) {
+        this.x = x
+        this.y = y
+
+        return this
+    }
+
+    setVector(vector) {
+        return this.setComponents(vector.x, vector.y)
+    }
+
+
+    addComponents(x, y) {
+        this.x += x
+        this.y += y
+
+        return this
+    }
+
+    addValue(value) {
+        return this.addComponents(value, value)
+    }
+
+    addVector(vector) {
+        return this.addComponents(vector.x, vector.y)
+    }
+
+
+    subtractComponents(x, y) {
+        this.x -= x
+        this.y -= y
+
+        return this
+    }
+
+    subtractValue(value) {
+        return this.subtractComponents(value, value)
+    }
+
+    subtractVector(vector) {
+        return this.subtractComponents(vector.x, vector.y)
+    }
+
+
+    multiplyComponents(x, y) {
+        this.x *= x
+        this.y *= y
+
+        return this
+    }
+
+    multiplyValue(value) {
+        return this.multiplyComponents(value, value)
+    }
+
+    multiplyVector(vector) {
+        return this.multiplyComponents(vector.x, vector.y)
+    }
+
+
+    divideComponents(x, y) {
+        this.x /= x
+        this.y /= y
+
+        return this
+    }
+
+    divideValue(value) {
+        return this.divideComponents(value, value)
+    }
+
+    divideVector(vector) {
+        return this.divideComponents(vector.x, vector.y)
+    }
+
+
+    getLength() {
+        if (this.x === 0.0 && this.y === 0.0)
+            return 0.0
+
+        const squared = this.x * this.x + this.y * this.y
+        return Math.sqrt(squared)
+    }
+
+    normalize() {
+        const length = this.getLength()
+        if (length === 0.0) {
+            this.y = 0.0
+            this.y = 0.0
+        } else {
+            this.x /= length
+            this.y /= length
+        }
+
+        return this
+    }
+
+    getNormalized() {
+        return this.getCopy().normalize()
+    }
+
+    getCopy() {
+        return new Vector().setVector(this)
+    }
+
+}
+
+class Particle {
+    constructor() {
+        this.position = new Vector().setComponents(
+            Math.random() * canvas_width,
+            Math.random() * canvas_height
+        )
+
+        this.position_previous = new Vector().setVector(this.position)
+
+        this.velocity = new Vector()
+
+        this.color = 0
+    }
+
+    update(time_delta) {
+        this.position_previous.setVector(this.position)
+
+        if (enabled) {
+            const acceleration = getAcceleration(this.position)
+                .multiplyValue(time_delta)
+            this.velocity.addVector(acceleration)
+        }
+
+        const friction_vector = this.velocity.getCopy()
+            .normalize()
+            .multiplyValue(friction * time_delta)
+        this.velocity.subtractVector(friction_vector)
+
+        this.position.addVector(this.velocity.getCopy().multiplyValue(time_delta))
+
+        if (this.position.x < 0.0) {
+            this.velocity.x *= -elasticity
+            this.position.x = 0.0
+        }
+
+        if (this.position.x >= canvas_width) {
+            this.velocity.x *= -elasticity
+            this.position.x = canvas_width - 1
+        }
+
+        if (this.position.y < 0.0) {
+            this.velocity.y *= -elasticity
+            this.position.y = 0.0
+        }
+
+        if (this.position.y >= canvas_height) {
+            this.velocity.y *= -elasticity
+            this.position.y = canvas_height - 1
+        }
+
+        const speed = this.velocity.getLength()
+        this.degree = Math.floor(Math.min(speed / 1024.0, 1.0) * 360.0)
+    }
+
+    render(context, time_delta) {
+        context.moveTo(this.position_previous.x, this.position_previous.y)
+        context.lineTo(this.position.x + 1, this.position.y + 1)
+    }
 }
 
 function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max)
-}
-
-function getLength(x, y) {
-    const squared = x * x + y * y
-    const length = Math.sqrt(squared)
-    return length
-}
-
-function getNormalized(x, y) {
-    const length = getLength(x, y)
-    if(length == 0)
-        return {x: 0, y: 0}
-
-    return {
-        x: x / length,
-        y: y / length
-    }
 }
 
 const settings_number_of_particles = document.getElementById("number_of_particles")
@@ -39,16 +193,14 @@ const information_fps = document.getElementById("fps")
 let canvas_width = canvas.width
 let canvas_height = canvas.height
 
-let mouse_x = canvas_width / 2
-let mouse_y = canvas_height / 2
+const mouse_position = new Vector()
 canvas.addEventListener("mousemove", (event) => {
     const rectangle = event.target.getBoundingClientRect()
 
-    const x = event.clientX - rectangle.left
-    const y = event.clientY - rectangle.top
-
-    mouse_x = x
-    mouse_y = y
+    mouse_position.setComponents(
+        event.clientX - rectangle.left,
+        event.clientY - rectangle.top
+    )
 })
 
 let enabled = false
@@ -56,6 +208,9 @@ canvas.addEventListener("mousedown", (event) => {
     enabled = true
 })
 canvas.addEventListener("mouseup", (event) => {
+    enabled = false
+})
+canvas.addEventListener("mouseleave", (event) => {
     enabled = false
 })
 
@@ -98,91 +253,40 @@ function updateParticles() {
     settings_number_of_particles.value = number_of_particles
 
     particles = [];
-    for (let index = 0; index < number_of_particles; index++) {
-        const particle = {
-            position_x: Math.random() * canvas_width,
-            position_y: Math.random() * canvas_height,
-
-            position_x_previous: 0,
-            position_y_previous: 0,
-
-            velocity_x: 0.0,
-            velocity_y: 0.0,
-
-            color: 0.0
-        }
-
-        particles[index] = particle
-    }
+    for (let index = 0; index < number_of_particles; index++)
+        particles[index] = new Particle()
 }
 settings_number_of_particles.onchange = updateParticles
 updateParticles()
 
+function getIntensityOld(position) {
+    const distance = mouse_position.getCopy()
+        .subtractVector(position)
+        .getLength()
 
-function getInterpolationFactor(t) {
-    return (-Math.pow(t, 6)) + 1
-}
-
-/*
-function getAcceleration(x, y) {
-    let delta_x = mouse_x - x
-    let delta_y = mouse_y - y
-    let length = getLength(delta_x, delta_y)
-
-    let t = Math.min(Math.max(length / gravitation_radius, 0.0), 1.0)
-    let factor = getInterpolationFactor(t)
-
-    let influence = gravitation * factor
-
-    let normalized_x = delta_x / length
-    let normalized_y = delta_y / length
-
-    return {
-        x: normalized_x * influence,
-        y: normalized_y * influence
-    }
-}
-*/
-
-function getIntensityOld(x, y) {
-    const delta_x = mouse_x - x
-    const delta_y = mouse_y - y
-
-    const distance = getLength(delta_x, delta_y)
-    if(distance > gravitation_radius)
+    if (distance > gravitation_radius)
         return 0.0
 
-    const t = clamp(distance / gravitation_radius, 0.0, 1.0)
-    const intensity = (-Math.pow(t, 6)) + 1
-
-    //console.log(intensity)
-
-    return intensity
+    const x = clamp(distance / gravitation_radius, 0.0, 1.0)
+    return -Math.pow(x, 6) + 1
 }
 
-function getIntensity(x, y) {
-    const delta_x = mouse_x - x
-    const delta_y = mouse_y - y
-    const distance = getLength(delta_x, delta_y)
+function getIntensity(position) {
+    const distance = mouse_position.getCopy()
+        .subtractVector(position)
+        .getLength()
 
-    const intensity = 1.0 / (distance * distance)
-
-    return intensity
+    return 1.0 / (distance * distance)
 }
 
-function getAcceleration(x, y) {
-    const intensity = getIntensityOld(x, y)
-    //console.log(intensity)
+function getAcceleration(position) {
+    const intensity = getIntensityOld(position)
     const influence = gravitation * intensity
 
-    const delta_x = mouse_x - x
-    const delta_y = mouse_y - y
-    const direction = getNormalized(delta_x, delta_y)
-
-    return {
-        x: direction.x * influence,
-        y: direction.y * influence
-    }
+    return mouse_position.getCopy()
+        .subtractVector(position)
+        .normalize()
+        .multiplyValue(influence)
 }
 
 const context = canvas.getContext("2d")
@@ -194,48 +298,8 @@ function update(time_delta) {
     information_time_delta.value = time_delta
     information_fps.value = 1.0 / time_delta
 
-    for (const particle of particles) {
-        particle.position_x_previous = particle.position_x
-        particle.position_y_previous = particle.position_y
-
-        if(enabled) {
-            const acceleration = getAcceleration(particle.position_x, particle.position_y)
-            particle.velocity_x += acceleration.x * time_delta
-            particle.velocity_y += acceleration.y * time_delta
-        }
-
-        const direction = getNormalized(particle.velocity_x, particle.velocity_y)
-        particle.velocity_x -= friction * direction.x * time_delta
-        particle.velocity_y -= friction * direction.y * time_delta
-
-        particle.position_x += particle.velocity_x * time_delta
-        particle.position_y += particle.velocity_y * time_delta
-
-        if (particle.position_x < 0.0) {
-            particle.velocity_x *= -elasticity
-            particle.position_x = 0.0
-        }
-
-        if (particle.position_x >= canvas_width) {
-            particle.velocity_x *= -elasticity
-            particle.position_x = canvas_width - 1
-        }
-
-        if (particle.position_y < 0.0) {
-            particle.velocity_y *= -elasticity
-            particle.position_y = 0.0
-        }
-
-        if (particle.position_y >= canvas_height) {
-            particle.velocity_y *= -elasticity
-            particle.position_y = canvas_height - 1
-        }
-
-        const speed = getLength(particle.velocity_x, particle.velocity_y)
-        particle.degree = Math.floor(Math.min(speed / 1024.0, 1.0) * 360.0)
-
-        console.log(speed)
-    }
+    for (const particle of particles)
+        particle.update(time_delta)
 }
 
 function render(time_delta) {
@@ -244,19 +308,18 @@ function render(time_delta) {
     const sorted = Object.groupBy(particles, ({ degree }) => degree)
     for (const [degree, p] of Object.entries(sorted)) {
         context.strokeStyle = `hsl(${degree}deg, 100%, 50%)`
+
         context.beginPath()
-        for (let index = 0; index < p.length; index++) {
-            const particle = p[index]
-            context.moveTo(particle.position_x_previous, particle.position_y_previous)
-            context.lineTo(particle.position_x + 1, particle.position_y + 1)
-        }
+        for (const particle of p)
+            particle.render(context, time_delta)
         context.stroke()
     }
 
-    if (false) {
+    if (enabled) {
         context.strokeStyle = "white"
+
         context.beginPath()
-        context.arc(mouse_x, mouse_y, gravitation_radius, 0, 2 * Math.PI)
+        context.arc(mouse_position.x, mouse_position.y, gravitation_radius, 0, 2 * Math.PI)
         context.stroke()
     }
 }
