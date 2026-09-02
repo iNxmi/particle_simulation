@@ -36,7 +36,7 @@ An interactive 2D physics simulation of gravitational pull and particle dynamics
 
 ```text
 ├── index.html        # Entrypoint with embedded UI controls, semantic tags, and SEO metadata
-├── index.jsx          # Physics engine, vector math, and canvas rendering loop
+├── Simulation.jsx          # Physics engine, vector math, and canvas rendering loop
 ├── robots.txt        # Web crawler directive and sitemap declaration
 ├── sitemap.xml       # Google search indexing sitemap
 └── README.md         # Project documentation

@@ -18,7 +18,7 @@
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
     "gl-matrix": "^4.0.0-beta.2",
-    "lucide": "^1.39.0",
+    "lucide-react": "^1.39.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "simplex-noise": "^4.0.3",

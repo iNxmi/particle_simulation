@@ -33,78 +33,7 @@
     <link href="/styles.css" rel="stylesheet">
 </head>
 
-<body class="bg-black text-white grow min-h-svh overflow-hidden">
-
-<h1 class="sr-only">Interactive Particle Gravitation Simulation</h1>
-
-<canvas id="canvas" class="grow bg-black select-none touch-none" width="1" height="1"></canvas>
-
-<div id="menu_open_button" class="fixed sm:top-0 sm:left-0 max-sm:bottom-0 max-sm:right-0 m-2 p-5 bg-blue-500 select-none bg-white/10 aspect-square rounded-2xl hover:bg-white/15">
-    <i class="text-5xl" data-lucide="settings"></i>
-</div>
-
-<div id="menu_close_root" class="flex flex-col absolute inset-0 bg-white/7 rounded-2xl md:w-100 md:rounded-2xl hidden overflow-scroll sm:w-full sm:rounded-none">
-    <div class="grow flex flex-col gap-15 m-5 justify-between">
-        <div class="flex flex-col gap-5">
-            <div id="menu_close_button" class="flex gap-1 bg-black text-white border-1 border-white/50 rounded-md p-1 hover:bg-gray-800 active:bg-gray-900 select-none justify-center">
-                <i data-lucide="x"></i>
-            </div>
-        </div>
-
-        <div class="flex flex-col gap-5">
-            <h2 class="text-3xl font-bold text-center select-none">Settings</h2>
-            <div class="flex flex-col gap-1">
-                <span class="font-bold">Number of Particles</span>
-                <input id="number_of_particles" class="grow bg-black text-white border-1 border-white/50 rounded-md p-1" type="text" value="2000.0">
-            </div>
-            <div class="flex flex-col gap-1">
-                <span class="font-bold">Gravitation (Pixels per Second Squared))</span>
-                <input id="gravitation" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="text" value="2000.0">
-            </div>
-            <div class="flex flex-col gap-1">
-                <span class="font-bold">Gravitation Radius (Pixels)</span>
-                <input id="gravitation_radius" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="text" value="300.0">
-            </div>
-            <div class="flex flex-col gap-1">
-                <span class="font-bold">Friction (Pixels per Second)</span>
-                <input id="friction" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="text" value="300.0">
-            </div>
-            <div class="flex flex-col gap-1">
-                <span class="font-bold">Elasticity (0% - 100%)</span>
-                <input id="elasticity" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="range" value="0.9" min="0" max="1" step="0.01">
-            </div>
-            <div class="flex flex-col gap-1">
-                <span class="font-bold">Roughness (0% - 100%)</span>
-                <input id="roughness" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="range" value="0.9" min="0" max="1" step="0.01">
-            </div>
-            <div class="flex flex-col gap-1">
-                <span class="font-bold">Reset Simulation</span>
-                <input id="reset" class="bg-black text-white border-1 border-white/50 rounded-md p-1 hover:bg-gray-800 active:bg-gray-900" type="button" value="Reset">
-            </div>
-        </div>
-
-        <div class="flex flex-col gap-5">
-            <h2 class="text-3xl font-bold text-center select-none">Information</h2>
-            <div class="flex flex-col gap-1">
-                <span class="font-bold">FPS</span>
-                <input id="fps" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="text" disabled>
-            </div>
-            <div class="flex flex-col gap-1">
-                <span class="font-bold">Delta Time (Seconds)</span>
-                <input id="time_delta" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="text" disabled>
-            </div>
-            <div class="flex flex-col gap-1">
-                <span class="font-bold">Version</span>
-                <input id="version" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="text" disabled>
-            </div>
-            <div class="flex flex-col gap-1">
-                <span class="font-bold">Currently in Range</span>
-                <input id="paticle_count_in_range" class="bg-black text-white border-1 border-white/50 rounded-md p-1" type="text" disabled>
-            </div>
-        </div>
-    </div>
-</div>
-</body>
+<body></body>
 
 <script src="index.jsx" type="module"></script>
 
