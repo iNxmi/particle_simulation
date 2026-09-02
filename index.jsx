@@ -1,5 +1,7 @@
 import {createIcons, icons} from "lucide"
 import {Vec2 as Vector} from "gl-matrix"
+import {version} from "./package.json"
+
 import {createNoise2D, createNoise3D} from "simplex-noise"
 // import {createRoot} from "react-dom/client"
 //
@@ -129,6 +131,7 @@ canvas.height = canvas_parent.offsetHeight
 const information_time_delta = document.getElementById("time_delta")
 const information_fps = document.getElementById("fps")
 const information_particle_count_in_range = document.getElementById("paticle_count_in_range")
+document.getElementById("version").value = version
 
 const mouse_position = new Vector()
 canvas.addEventListener("mousemove", (event) => {
