@@ -1,5 +1,12 @@
 import {createIcons, icons} from "lucide"
 import {Vec2 as Vector} from "gl-matrix"
+import {createNoise2D, createNoise3D} from "simplex-noise"
+// import {createRoot} from "react-dom/client"
+//
+// document.body.innerHTML = "<div id='app'></div>"
+//
+// const root = createRoot(document.getElementById("app"))
+// root.render(<h1>Hello World!</h1>)
 
 createIcons({icons})
 
@@ -23,6 +30,10 @@ function reflect(out, incident, normal) {
     return out
 }
 
+function remap(value, in_min, in_max, out_min, out_max) {
+    return out_min + ((value - in_min) * (out_max - out_min))/(in_max - in_min)
+}
+
 class Particle {
     constructor() {
         this.position = new Vector(
@@ -40,11 +51,8 @@ class Particle {
     update(time_delta) {
         this.position_previous.copy(this.position)
 
-        const distance = Vector.distance(mouse_position, this.position)
-        if (enabled && distance <= gravitation_radius) {
-            const acceleration = getAcceleration(this.position).scale(time_delta)
-            this.velocity.add(acceleration)
-        }
+        const acceleration = getAcceleration(this.position).scale(time_delta)
+        this.velocity.add(acceleration)
 
         if (this.velocity.magnitude > 0.0) {
             const friction_vector = Vector.clone(this.velocity)
@@ -267,8 +275,16 @@ function getIntensity(position) {
     return 1.0 / (distance)
 }
 
+let time_s = 0
+// const noise_x = createNoise2D()
+// const noise_y = createNoise2D()
 function getAcceleration(position) {
-    const intensity = getIntensityOld(position)
+    // const ambient_gravity = new Vector(
+    //     noise_x(position.x/ 1000, position.y/ 1000, time_s * 200),
+    //     noise_y(position.x/ 1000, position.y/ 1000, time_s * 200),
+    // ).scale(500.0)
+
+    const intensity = getIntensityOld(position) * (enabled ? 1 : 0)
     const influence = gravitation * intensity
 
     return Vector.clone(mouse_position)
@@ -282,9 +298,15 @@ context.lineWidth = 1
 context.fillStyle = "white"
 context.strokeStyle = "white"
 
+// const noise_mouse_x = createNoise2D()
+// const noise_mouse_y = createNoise2D()
 function update(time_delta) {
     information_time_delta.value = Math.round(time_delta * 10000.0) / 10000.0
     information_fps.value = Math.round(1.0 / time_delta)
+
+    // mouse_position.x = remap(noise_mouse_x(time_s / 8, 0), -1, 1, -0.2, 1.2) * canvas.width
+    // mouse_position.y = remap(noise_mouse_y(time_s / 8, 0), -1, 1, -0.2, 1.2) * canvas.height
+    // enabled = true
 
     let count = 0
     for (const particle of particles) {
@@ -309,19 +331,20 @@ function render(time_delta) {
         context.stroke()
     }
 
-    if (enabled) {
-        context.strokeStyle = "#222222"
-
-        context.beginPath()
-        context.arc(mouse_position.x, mouse_position.y, gravitation_radius, 0.0, 2.0 * Math.PI)
-        context.stroke()
-    }
+    // if (enabled) {
+    //     context.strokeStyle = "#222222"
+    //
+    //     context.beginPath()
+    //     context.arc(mouse_position.x, mouse_position.y, gravitation_radius, 0.0, 2.0 * Math.PI)
+    //     context.stroke()
+    // }
 }
 
 let time_last = 0;
 
 function loop(time_now_ms) {
-    const time_delta = (time_now_ms / 1000.0) - time_last
+    time_s = time_now_ms / 1000.0
+    const time_delta = time_s - time_last
     time_last += time_delta
 
     update(time_delta)
