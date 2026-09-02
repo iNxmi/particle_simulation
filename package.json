@@ -1,0 +1,23 @@
+{
+  "name": "particle_simulation",
+  "version": "1.4.0",
+  "description": "An interactive 2D physics simulation of gravitational pull and particle dynamics running directly in the browser via HTML5 Canvas.",
+  "main": "source/index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "keywords": [],
+  "author": "Memphis Herghelegiu",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "vite": "^8.2.2"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "gl-matrix": "^4.0.0-beta.2",
+    "lucide": "^1.39.0",
+    "tailwindcss": "^4.3.3"
+  }
+}
