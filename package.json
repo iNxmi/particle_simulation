@@ -5,7 +5,8 @@
   "main": "source/index.js",
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "keywords": [],
   "author": "Memphis Herghelegiu",
