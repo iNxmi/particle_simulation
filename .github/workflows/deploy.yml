@@ -1,8 +1,8 @@
-name: Build and Push to Production Branch
+name: Build, Release Assets, and Push Branch
 
 on:
   release:
-    types: [published]
+    types: [ published ]
 
 permissions:
   contents: write
@@ -18,13 +18,27 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 24
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build site
+      - name: Build static site
         run: npm run build
+
+      - name: Package production and sources
+        run: |
+          zip -r "${{ github.ref_name }}_production.zip" dist/
+          git archive --format=zip --output="${{ github.ref_name }}_sources.zip" HEAD
+
+      - name: Upload zip assets to Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ github.ref_name }}_production.zip
+            ${{ github.ref_name }}_sources.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Deploy dist to production branch
         uses: peaceiris/actions-gh-pages@v4
