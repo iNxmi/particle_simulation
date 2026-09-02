@@ -47,7 +47,7 @@ class Particle {
         this.position_previous.copy(this.position)
 
         const acceleration = new Vector()
-        for(const [_, vertex] of vertices)
+        for (const [_, vertex] of vertices)
             acceleration.add(getAcceleration(vertex, this.position, gravitation, gravitation_radius))
 
         this.velocity.scaleAndAdd(acceleration, time_delta)
@@ -98,6 +98,15 @@ class Particle {
     }
 }
 
+function getIntensityLinear(origin, position, gravitation_radius) {
+    const distance = Vector.distance(origin, position)
+    if (distance <= 0 || distance > gravitation_radius)
+        return 0.0
+
+    const x = clamp(gravitation_radius / distance, 0.0, 1.0)
+    return x
+}
+
 function getIntensity(origin, position, gravitation_radius) {
     const distance = Vector.distance(origin, position)
     if (distance > gravitation_radius)
@@ -108,7 +117,7 @@ function getIntensity(origin, position, gravitation_radius) {
 }
 
 function getAcceleration(origin, position, gravitation, gravitation_radius) {
-    const intensity = getIntensity(origin, position, gravitation_radius)
+    const intensity = getIntensityLinear(origin, position, gravitation_radius)
     return Vector.clone(origin)
         .subtract(position)
         .normalize()
@@ -116,7 +125,7 @@ function getAcceleration(origin, position, gravitation, gravitation_radius) {
 }
 
 function onMouseMove(event, vertices) {
-    if(!vertices.has("mouse"))
+    if (!vertices.has("mouse"))
         return
 
     const rectangle = event.target.getBoundingClientRect()
@@ -127,7 +136,7 @@ function onMouseMove(event, vertices) {
 }
 
 function onMouseDown(event, vertices) {
-    if(vertices.has("mouse"))
+    if (vertices.has("mouse"))
         return
 
     const rectangle = event.target.getBoundingClientRect()
@@ -139,17 +148,29 @@ function onMouseDown(event, vertices) {
 }
 
 function onMouseUp(vertices) {
-    if(vertices.has("mouse"))
+    if (vertices.has("mouse"))
         vertices.delete("mouse")
 }
 
 function onMouseLeave(vertices) {
-    if(vertices.has("mouse"))
+    if (vertices.has("mouse"))
         vertices.delete("mouse")
 }
 
+function onContextMenu(event, vertices) {
+    if (vertices.has("mouse"))
+        return
+
+    const rectangle = event.target.getBoundingClientRect()
+    const vertex = new Vector(
+        event.clientX - rectangle.left,
+        event.clientY - rectangle.top
+    )
+    vertices.set("mouse", vertex)
+}
+
 function onTouchStart(event, vertices) {
-    for(const touch of event.touches) {
+    for (const touch of event.touches) {
         const rectangle = event.target.getBoundingClientRect()
         const vertex = new Vector(
             touch.clientX - rectangle.left,
@@ -162,22 +183,15 @@ function onTouchStart(event, vertices) {
 }
 
 function onTouchEnd(event, vertices) {
-    for(const touch of event.changedTouches) {
-        const identifier = touch.identifier
-
-        if(!vertices.has(identifier))
-            continue
-
-        vertices.delete(identifier)
-        console.log(touch.identifier)
-    }
+    for (const touch of event.changedTouches)
+        vertices.delete(touch.identifier)
 }
 
 function onTouchMove(event, vertices) {
-    for(const touch of event.touches) {
+    for (const touch of event.touches) {
         const identifier = touch.identifier
 
-        if(!vertices.has(identifier))
+        if (!vertices.has(identifier))
             continue
 
         const vertex = vertices.get(identifier)
@@ -188,20 +202,14 @@ function onTouchMove(event, vertices) {
 }
 
 function onTouchCancel(event, vertices) {
-    for(const touch of event.touches) {
-        const identifier = touch.identifier
-
-        if(!vertices.has(identifier))
-            continue
-
-        vertices.delete(identifier)
-    }
+    for (const touch of event.changedTouches)
+        vertices.delete(touch.identifier)
 }
 
 function Simulation({number_of_particles = 10000, gravitation = 1500, gravitation_radius = 300, friction = 250, elasticity = 0.8, roughness = 0.25}) {
 
     const canvas_reference = useRef(null)
-    const particles = useRef([])
+    const particles = useRef(null)
 
     useEffect(() => {
         const canvas = canvas_reference.current
@@ -209,15 +217,18 @@ function Simulation({number_of_particles = 10000, gravitation = 1500, gravitatio
         context.lineWidth = 1
         context.fillStyle = "white"
         context.strokeStyle = "white"
+        context.imageSmoothingEnabled = false
 
         const canvas_parent = canvas.parentNode
         window.addEventListener("resize", (event) => {
             resize()
         })
+
         function resize() {
             canvas.width = canvas_parent.offsetWidth
             canvas.height = canvas_parent.offsetHeight
         }
+
         resize()
 
         const vertices = new Map()
@@ -226,14 +237,18 @@ function Simulation({number_of_particles = 10000, gravitation = 1500, gravitatio
         canvas.addEventListener("mousedown", (event) => onMouseDown(event, vertices))
         canvas.addEventListener("mouseup", () => onMouseUp(vertices))
         canvas.addEventListener("mouseleave", () => onMouseLeave(vertices))
+        canvas.addEventListener("contextmenu", (event) => {event.preventDefault()})
 
-        canvas.addEventListener("touchstart", (event) => onTouchStart(event, vertices) )
-        canvas.addEventListener("touchend", (event) => onTouchEnd(event, vertices))
         canvas.addEventListener("touchmove", (event) => onTouchMove(event, vertices))
-        canvas.addEventListener("touchcancel", (event) => onTouchMove(event, vertices))
+        canvas.addEventListener("touchstart", (event) => onTouchStart(event, vertices))
+        canvas.addEventListener("touchend", (event) => onTouchEnd(event, vertices))
+        canvas.addEventListener("touchcancel", (event) => onTouchCancel(event, vertices))
 
-        for (let index = 0; index < number_of_particles; index++)
-            particles.current[index] = new Particle(canvas.width, canvas.height)
+        if (!particles.current) {
+            particles.current = []
+            for (let index = 0; index < number_of_particles; index++)
+                particles.current[index] = new Particle(canvas.width, canvas.height)
+        }
 
         function update(time_delta) {
             for (const particle of particles.current)
@@ -262,6 +277,7 @@ function Simulation({number_of_particles = 10000, gravitation = 1500, gravitatio
 
         let time_last = 0;
         let animation_frame_id = 0
+
         function loop(time_now_ms) {
             const time_delta = (time_now_ms / 1000.0) - time_last
             time_last += time_delta
@@ -271,10 +287,11 @@ function Simulation({number_of_particles = 10000, gravitation = 1500, gravitatio
 
             animation_frame_id = requestAnimationFrame(loop)
         }
+
         requestAnimationFrame(loop)
 
         return () => cancelAnimationFrame(animation_frame_id)
-    })
+    }, [])
 
     return <canvas className="grow bg-black select-none touch-none" ref={canvas_reference} width={800} height={800}></canvas>
 }

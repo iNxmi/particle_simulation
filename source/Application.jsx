@@ -8,7 +8,7 @@ function Application() {
     const [isMenuOpen, setIsMenuOpen] = useState(false)
 
     return (
-        <div className="bg-black text-white grow min-h-svh overflow-hidden">
+        <div className="bg-black grow min-h-svh max-h-svh overflow-hidden text-gray-300">
             <h1 className="sr-only">Interactive Particle Gravitation Simulation</h1>
 
             <Simulation/>
