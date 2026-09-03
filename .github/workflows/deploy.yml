@@ -26,17 +26,13 @@ jobs:
       - name: Build static site
         run: npm run build
 
-      - name: Package production and sources
-        run: |
-          zip -r "${{ github.ref_name }}_production.zip" dist/
-          git archive --format=zip --output="${{ github.ref_name }}_sources.zip" HEAD
+      - name: Package production
+        run: cd dist && zip -r ../production.zip . && cd ..
 
-      - name: Upload zip assets to Release
+      - name: Upload zip asset to Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            ${{ github.ref_name }}_production.zip
-            ${{ github.ref_name }}_sources.zip
+          files: production.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -46,3 +42,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_branch: production
           publish_dir: ./dist
+          exclude_assets: ".nojekyll"
