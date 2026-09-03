@@ -2,7 +2,7 @@
   "name": "particle_simulation",
   "version": "1.6.0",
   "description": "An interactive 2D physics simulation of gravitational pull and particle dynamics running directly in the browser via HTML5 Canvas.",
-  "main": "source/index.js",
+  "main": "source/components/index.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

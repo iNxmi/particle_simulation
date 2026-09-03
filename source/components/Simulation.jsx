@@ -194,10 +194,25 @@ function onTouchCancel(event, vertices) {
         vertices.delete(touch.identifier)
 }
 
-function Simulation({number_of_particles = 10000, gravitation = 1500, gravitation_radius = 300, friction = 250, elasticity = 0.8, roughness = 0.25}) {
+function Simulation({configuration}) {
+
+    const configurationReference = useRef(configuration)
+    useEffect(() => {
+        configurationReference.current = configuration;
+    }, [configuration]);
 
     const canvas_reference = useRef(null)
-    const particles = useRef(null)
+
+    const particles = useRef([])
+    function initializeParticles(numberOfParticles, world_width, world_height) {
+        particles.current = []
+        for (let index = 0; index < numberOfParticles; index++)
+            particles.current[index] = new Particle(world_width, world_height)
+    }
+
+    useEffect(() => {
+        initializeParticles(configuration.numberOfParticles, 800, 800);
+    }, [configuration.numberOfParticles]);
 
     useEffect(() => {
         const canvas = canvas_reference.current
@@ -225,22 +240,27 @@ function Simulation({number_of_particles = 10000, gravitation = 1500, gravitatio
         canvas.addEventListener("mousedown", (event) => onMouseDown(event, vertices))
         canvas.addEventListener("mouseup", () => onMouseUp(vertices))
         canvas.addEventListener("mouseleave", () => onMouseLeave(vertices))
-        canvas.addEventListener("contextmenu", (event) => {event.preventDefault()})
+        canvas.addEventListener("contextmenu", (event) => {
+            event.preventDefault()
+        })
 
         canvas.addEventListener("touchmove", (event) => onTouchMove(event, vertices))
         canvas.addEventListener("touchstart", (event) => onTouchStart(event, vertices))
         canvas.addEventListener("touchend", (event) => onTouchEnd(event, vertices))
         canvas.addEventListener("touchcancel", (event) => onTouchCancel(event, vertices))
 
-        if (!particles.current) {
-            particles.current = []
-            for (let index = 0; index < number_of_particles; index++)
-                particles.current[index] = new Particle(canvas.width, canvas.height)
-        }
-
         function update(time_delta) {
             for (const particle of particles.current)
-                particle.update(time_delta, canvas.width, canvas.height, vertices, gravitation, gravitation_radius, elasticity, friction, roughness)
+                particle.update(
+                    time_delta,
+                    canvas.width, canvas.height,
+                    vertices,
+                    configurationReference.current.gravitation,
+                    configurationReference.current.gravitationRadius,
+                    configurationReference.current.elasticity,
+                    configurationReference.current.friction,
+                    configurationReference.current.roughness
+                )
         }
 
         function render(time_delta) {
