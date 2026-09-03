@@ -1,5 +1,6 @@
 import {useEffect, useRef} from "react"
 import {Vec2 as Vector} from "gl-matrix"
+import {compile} from "mathjs"
 
 const UP = new Vector(0.0, -1.0)
 const DOWN = new Vector(0.0, 1.0)
@@ -43,12 +44,12 @@ class Particle {
         this.hue = 0
     }
 
-    update(time_delta, world_width, world_height, vertices, gravitation, gravitation_radius, elasticity, friction, roughness) {
+    update(time_delta, world_width, world_height, vertices, gravitation, gravitation_radius, elasticity, friction, roughness, intensityFunction) {
         this.position_previous.copy(this.position)
 
         const acceleration = new Vector()
         for (const [_, vertex] of vertices)
-            acceleration.add(getAcceleration(vertex, this.position, gravitation, gravitation_radius))
+            acceleration.add(getAcceleration(intensityFunction, vertex, this.position, gravitation, gravitation_radius))
 
         this.velocity.scaleAndAdd(acceleration, time_delta)
 
@@ -98,26 +99,17 @@ class Particle {
     }
 }
 
-function getIntensityLinear(origin, position, gravitation_radius) {
-    const distance = Vector.distance(origin, position)
-    if (distance <= 0 || distance > gravitation_radius)
-        return 0.0
-
-    const x = clamp(gravitation_radius / distance, 0.0, 1.0)
-    return x
-}
-
-function getIntensity(origin, position, gravitation_radius) {
+function getIntensity(intensityFunction, origin, position, gravitation_radius) {
     const distance = Vector.distance(origin, position)
     if (distance > gravitation_radius)
         return 0.0
 
     const x = clamp(distance / gravitation_radius, 0.0, 1.0)
-    return -Math.pow(x, 6) + 1
+    return intensityFunction.evaluate({x: x})
 }
 
-function getAcceleration(origin, position, gravitation, gravitation_radius) {
-    const intensity = getIntensityLinear(origin, position, gravitation_radius)
+function getAcceleration(intensityFunction, origin, position, gravitation, gravitation_radius) {
+    const intensity = getIntensity(intensityFunction, origin, position, gravitation_radius)
     return Vector.clone(origin)
         .subtract(position)
         .normalize()
@@ -202,17 +194,22 @@ function Simulation({configuration}) {
     }, [configuration]);
 
     const canvas_reference = useRef(null)
-
     const particles = useRef([])
+    const intensityFunction = useRef(null)
+
     function initializeParticles(numberOfParticles, world_width, world_height) {
         particles.current = []
-        for (let index = 0; index < numberOfParticles; index++)
+        for (let index = 0; index < numberOfParticles; index++) {
             particles.current[index] = new Particle(world_width, world_height)
+        }
     }
-
     useEffect(() => {
         initializeParticles(configuration.numberOfParticles, 800, 800);
     }, [configuration.numberOfParticles]);
+
+    useEffect(() => {
+        intensityFunction.current = compile(configuration.intensityExpression)
+    }, [configuration.intensityExpression]);
 
     useEffect(() => {
         const canvas = canvas_reference.current
@@ -240,9 +237,7 @@ function Simulation({configuration}) {
         canvas.addEventListener("mousedown", (event) => onMouseDown(event, vertices))
         canvas.addEventListener("mouseup", () => onMouseUp(vertices))
         canvas.addEventListener("mouseleave", () => onMouseLeave(vertices))
-        canvas.addEventListener("contextmenu", (event) => {
-            event.preventDefault()
-        })
+        canvas.addEventListener("contextmenu", (event) => {event.preventDefault()})
 
         canvas.addEventListener("touchmove", (event) => onTouchMove(event, vertices))
         canvas.addEventListener("touchstart", (event) => onTouchStart(event, vertices))
@@ -259,7 +254,8 @@ function Simulation({configuration}) {
                     configurationReference.current.gravitationRadius,
                     configurationReference.current.elasticity,
                     configurationReference.current.friction,
-                    configurationReference.current.roughness
+                    configurationReference.current.roughness,
+                    intensityFunction.current
                 )
         }
 

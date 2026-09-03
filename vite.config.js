@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite"
 import {version} from "./package.json"
 
 export default defineConfig(({mode}) => {
-    const applicationVersion = mode === "development" ? `v${version}-development` : version
+    const applicationVersion = mode === "development" ? `v${version}-development` : `v${version}`
 
     return {
         plugins: [
