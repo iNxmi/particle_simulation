@@ -157,18 +157,6 @@ function onMouseLeave(vertices) {
         vertices.delete("mouse")
 }
 
-function onContextMenu(event, vertices) {
-    if (vertices.has("mouse"))
-        return
-
-    const rectangle = event.target.getBoundingClientRect()
-    const vertex = new Vector(
-        event.clientX - rectangle.left,
-        event.clientY - rectangle.top
-    )
-    vertices.set("mouse", vertex)
-}
-
 function onTouchStart(event, vertices) {
     for (const touch of event.touches) {
         const rectangle = event.target.getBoundingClientRect()
