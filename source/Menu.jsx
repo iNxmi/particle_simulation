@@ -23,6 +23,7 @@ function Menu({isOpen, onClose}) {
     const [numberOfParticles, setNumberOfParticles] = useState(25000)
     const [gravitation, setGravitation] = useState(2500.0)
     const [gravitationRadius, setGravitationRadius] = useState(250.0)
+    const [gravitationIntensityExpression, setGravityIntensityExpression] = useState("-x^6 + 1")
     const [friction, setFriction] = useState(150.0)
     const [elasticity, setElasticity] = useState(0.67)
     const [roughness, setRoughness] = useState(0.40)
@@ -48,6 +49,9 @@ function Menu({isOpen, onClose}) {
                     </Field>
                     <Field label="Gravitation Radius" accent = "px">
                         <Input type="number" value={gravitationRadius} min={1} step={0.01} onChange={(event) => setGravitationRadius(event.target.value)}/>
+                    </Field>
+                    <Field label="Intensity Expression">
+                        <Input type="text" value={gravitationIntensityExpression} onChange={(event) => setGravityIntensityExpression(event.target.value)}/>
                     </Field>
                     <Field label="Friction" accent="px / s">
                         <Input type="number" value={friction} step={0.01} onChange={(event) => setFriction(event.target.value)}/>
