@@ -1,20 +1,28 @@
+import {useState} from "react"
 import {version} from "../package.json"
-import {X, GitGraph} from "lucide-react"
+import {X} from "lucide-react"
 import Input from "./Input";
 import Card from "./Card";
 
 function wrapper(title, children) {
     return (
-    <div className="flex flex-col gap-1">
-        <span className="font-bold">{title}</span>
-        {children}
-    </div>
+        <label className="flex flex-col gap-1">
+            <span className="font-bold">{title}</span>
+            {children}
+        </label>
     )
 }
 
 function Menu({isOpen, onClose}) {
     if (!isOpen)
         return null
+
+    const [numberOfParticles, setNumberOfParticles] = useState(25000)
+    const [gravitation, setGravitation] = useState(2500.0)
+    const [gravitationRadius, setGravitationRadius] = useState(250.0)
+    const [friction, setFriction] = useState(150.0)
+    const [elasticity, setElasticity] = useState(0.67)
+    const [roughness, setRoughness] = useState(0.40)
 
     return (
         <Card className="flex flex-col absolute inset-0 md:w-100 overflow-scroll sm:w-full p-3 m-3">
@@ -27,12 +35,12 @@ function Menu({isOpen, onClose}) {
 
                 <Card className="flex flex-col gap-3 p-3">
                     <h2 className="text-3xl font-bold text-center select-none">Settings</h2>
-                    {wrapper("Number of Particles", <Input type="number" value="25000" onChange={() => alert}/>)}
-                    {wrapper("Gravitation (px/s²)", <Input type="number" step="0.01" value="2500.0"/>)}
-                    {wrapper("Gravitation Radius (px)", <Input type="number" min="1" step="0.01" value="300.0"/>)}
-                    {wrapper("Friction (px/s)", <Input type="number" step="0.01" value="150.0"/>)}
-                    {wrapper("Elasticity (%)", <Input type="range" min="0" max="1" step="0.01" value="0.67"/>)}
-                    {wrapper("Roughness (%)", <Input type="range" min="0" max="1" step="0.01" value="0.25"/>)}
+                    {wrapper("Number of Particles", <Input type="number" value={numberOfParticles} onChange={(event) => setNumberOfParticles(event.target.value)}/>)}
+                    {wrapper("Gravitation (px/s²)", <Input type="number" value={gravitation} step="0.01" onChange={(event) => setGravitation(event.target.value)}/>)}
+                    {wrapper("Gravitation Radius (px)", <Input type="number" value={gravitationRadius} min="1" step="0.01" onChange={(event) => setGravitationRadius(event.target.value)}/>)}
+                    {wrapper("Friction (px/s)", <Input type="number" value={friction} step="0.01" onChange={(event) => setFriction(event.target.value)}/>)}
+                    {wrapper(`Elasticity (${elasticity}%)`, <Input type="range" value={elasticity} min="0" max="1" step="0.01" onChange={(event) => setElasticity(event.target.value)}/>)}
+                    {wrapper(`Roughness (${roughness}%)`, <Input type="range" value={roughness} min="0" max="1" step="0.01" onChange={(event) => setRoughness(event.target.value)}/>)}
                     {wrapper("Reset Simulation", <Input type="button" value="Reset"/>)}
                 </Card>
 

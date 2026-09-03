@@ -1,4 +1,4 @@
-import {useEffect, useRef, useState} from "react"
+import {useEffect, useRef} from "react"
 import {Vec2 as Vector} from "gl-matrix"
 
 const UP = new Vector(0.0, -1.0)
