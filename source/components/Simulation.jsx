@@ -118,12 +118,42 @@ function onTouchCancel(event, vertices) {
     }
 }
 
-const vertex_shader_source = (`
-    sdfsdf
+const vertex_shader_source = (`#version 300 es
+in vec2 a_position;
+in vec2 a_velocity;
+
+uniform vec2 u_resolution;
+
+out vec2 v_velocity;
+
+void main() {
+    v_velocity = a_velocity;
+
+    vec2 clip_space = (a_position / u_resolution) * 2.0 - 1.0;
+    gl_PointSize = 2.5;
+    gl_Position = vec4(clip_space.x, -clip_space.y, 0.0, 1.0);
+}
 `)
 
-const fragment_shader_source = (`
+const fragment_shader_source = (`#version 300 es
+precision mediump float;
 
+in vec2 v_velocity;
+
+out vec4 fragColor;
+
+vec3 hsv2rgb(vec3 c) {
+    vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+    return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+}
+
+void main() {
+    float hue = length(v_velocity) / 1024.0;
+    vec3 hsv = vec3(clamp(hue, 0.0, 1.0), 1.0, 1.0);
+    vec3 rgb = hsv2rgb(hsv);
+    fragColor = vec4(rgb, 1.0);
+}
 `)
 
 function Simulation({configuration}) {
@@ -142,17 +172,57 @@ function Simulation({configuration}) {
 
     useEffect(() => {
         const canvas = canvasReference.current
-        const context = canvas.getContext("2d")
-        context.lineWidth = 1
-        context.fillStyle = "white"
-        context.strokeStyle = "white"
+        const gl = canvas.getContext("webgl2")
+
+        function createShader(gl, type, source) {
+            const shader = gl.createShader(type)
+            gl.shaderSource(shader, source)
+            gl.compileShader(shader)
+
+            const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS)
+            if(success)
+                return shader
+
+            const error = gl.getShaderInfoLog(shader)
+            console.log(error)
+
+            gl.deleteShader(shader)
+        }
+
+        const shaderVertex = createShader(gl, gl.VERTEX_SHADER, vertex_shader_source)
+        const shaderFragment = createShader(gl, gl.FRAGMENT_SHADER, fragment_shader_source)
+
+        function createProgram(gl, vertexShader, fragmentShader) {
+            const program = gl.createProgram()
+            gl.attachShader(program, vertexShader)
+            gl.attachShader(program, fragmentShader)
+            gl.linkProgram(program)
+
+            const success = gl.getProgramParameter(program, gl.LINK_STATUS)
+            if(success)
+                return program
+
+            const error = gl.getProgramIngoLog(program)
+            console.log(error)
+
+            gl.deleteProgram(program)
+        }
+
+        const program = createProgram(gl, shaderVertex, shaderFragment)
+
+        const resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution");
+        const positionAttributeLocation = gl.getAttribLocation(program, "a_position")
+        const velocityAttributeLocation = gl.getAttribLocation(program, "a_velocity")
+
+        const vertexBuffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
 
         const particles = new Float32Array(configurationReference.current.numberOfParticles * STRIDE_PARTICLES)
         for (let index = 0; index < configurationReference.current.numberOfParticles; index++) {
             const i = index * STRIDE_PARTICLES
 
-            const x = Math.random() * canvas.width
-            const y = Math.random() * canvas.height
+            const x = Math.random() * 800
+            const y = Math.random() * 800
 
             particles[i + OFFSET_PARTICLE_POSITION_X] = x
             particles[i + OFFSET_PARTICLE_POSITION_Y] = y
@@ -160,10 +230,18 @@ function Simulation({configuration}) {
             particles[i + OFFSET_PARTICLE_POSITION_PREVIOUS_Y] = y
         }
 
+        gl.bufferData(gl.ARRAY_BUFFER, particles, gl.DYNAMIC_DRAW)
+
+        gl.viewport(0, 0, canvas.width, canvas.height)
+
+        gl.clearColor(0, 0, 0, 0)
+        gl.clear(gl.COLOR_BUFFER_BIT)
+
         const canvasParent = canvas.parentNode
         function resize() {
             canvas.width = canvasParent.offsetWidth
             canvas.height = canvasParent.offsetHeight
+            gl.viewport(0, 0, canvas.width, canvas.height)
         }
         window.addEventListener("resize", resize)
         resize()
@@ -289,34 +367,30 @@ function Simulation({configuration}) {
         function render() {
             const config = configurationReference.current
 
-            context.clearRect(0, 0, canvas.width, canvas.height)
+            gl.useProgram(program)
 
-            context.fillStyle="white"
-            context.strokeStyle="white"
+            gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height)
 
-            context.beginPath()
-            for (let index = 0; index < config.numberOfParticles; index++) {
-                const i = index * STRIDE_PARTICLES
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
 
-                context.moveTo(
-                    particles[i + OFFSET_PARTICLE_POSITION_PREVIOUS_X],
-                    particles[i + OFFSET_PARTICLE_POSITION_PREVIOUS_Y]
-                )
+            gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(particles))
 
-                context.lineTo(
-                    particles[i + OFFSET_PARTICLE_POSITION_X] + 1,
-                    particles[i + OFFSET_PARTICLE_POSITION_Y] + 1
-                )
-            }
-            context.stroke()
+            gl.enableVertexAttribArray(positionAttributeLocation)
+            gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, STRIDE_PARTICLES * 4, 0)
+
+            gl.enableVertexAttribArray(velocityAttributeLocation)
+            gl.vertexAttribPointer(velocityAttributeLocation, 2, gl.FLOAT, false, STRIDE_PARTICLES * 4, 4 * 4)
+
+            gl.drawArrays(gl.POINTS, 0, particles.length / STRIDE_PARTICLES)
         }
 
         let time_last = 0;
         let animation_frame_id = 0
 
         function loop(time_now_ms) {
-            const time_delta = (time_now_ms / 1000.0) - time_last
-            time_last += time_delta
+            const time_now_s = time_now_ms / 1000.0
+            const time_delta = time_now_s - time_last
+            time_last = time_now_s
 
             update(time_delta)
             render()
