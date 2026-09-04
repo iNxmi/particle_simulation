@@ -2,13 +2,11 @@ import {useEffect, useRef} from "react"
 import {Vec2 as Vector} from "gl-matrix"
 import {compile} from "mathjs"
 
-const STRIDE_PARTICLES = 6
+const STRIDE_PARTICLES = 4
 const OFFSET_PARTICLE_POSITION_X = 0
 const OFFSET_PARTICLE_POSITION_Y = 1
-const OFFSET_PARTICLE_POSITION_PREVIOUS_X = 2
-const OFFSET_PARTICLE_POSITION_PREVIOUS_Y = 3
-const OFFSET_PARTICLE_VELOCITY_X = 4
-const OFFSET_PARTICLE_VELOCITY_Y = 5
+const OFFSET_PARTICLE_VELOCITY_X = 2
+const OFFSET_PARTICLE_VELOCITY_Y = 3
 
 const STRIDE_VERTICES = 3
 const OFFSET_VERTEX_POSITION_X = 0
@@ -216,17 +214,18 @@ function Simulation({configuration}) {
         const vertexBuffer = gl.createBuffer()
         gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
 
-        const particles = new Float32Array(configurationReference.current.numberOfParticles * STRIDE_PARTICLES)
+        const particles = new Float32Array(configurationReference.current.numberOfParticles * STRIDE_PARTICLES * 2)
         for (let index = 0; index < configurationReference.current.numberOfParticles; index++) {
-            const i = index * STRIDE_PARTICLES
+            const i_current = index * 2 * STRIDE_PARTICLES
+            const i_previous = (index * 2 + 1) * STRIDE_PARTICLES
 
             const x = Math.random() * 800
             const y = Math.random() * 800
 
-            particles[i + OFFSET_PARTICLE_POSITION_X] = x
-            particles[i + OFFSET_PARTICLE_POSITION_Y] = y
-            particles[i + OFFSET_PARTICLE_POSITION_PREVIOUS_X] = x
-            particles[i + OFFSET_PARTICLE_POSITION_PREVIOUS_Y] = y
+            particles[i_current + OFFSET_PARTICLE_POSITION_X] = x
+            particles[i_current + OFFSET_PARTICLE_POSITION_Y] = y
+            particles[i_previous + OFFSET_PARTICLE_POSITION_X] = x
+            particles[i_previous + OFFSET_PARTICLE_POSITION_Y] = y
         }
 
         gl.bufferData(gl.ARRAY_BUFFER, particles, gl.DYNAMIC_DRAW)
@@ -266,15 +265,18 @@ function Simulation({configuration}) {
             const roughness = config.roughness
 
             for (let index = 0; index < config.numberOfParticles; index++) {
-                const i = index * STRIDE_PARTICLES
+                const i_current = index * 2 * STRIDE_PARTICLES
+                const i_previous = (index * 2 + 1) * STRIDE_PARTICLES
 
-                let positionX = particles[i + OFFSET_PARTICLE_POSITION_X]
-                let positionY = particles[i + OFFSET_PARTICLE_POSITION_Y]
-                let velocityX = particles[i + OFFSET_PARTICLE_VELOCITY_X]
-                let velocityY = particles[i + OFFSET_PARTICLE_VELOCITY_Y]
+                let positionX = particles[i_current + OFFSET_PARTICLE_POSITION_X]
+                let positionY = particles[i_current + OFFSET_PARTICLE_POSITION_Y]
+                let velocityX = particles[i_current + OFFSET_PARTICLE_VELOCITY_X]
+                let velocityY = particles[i_current + OFFSET_PARTICLE_VELOCITY_Y]
 
-                particles[i + OFFSET_PARTICLE_POSITION_PREVIOUS_X] = positionX
-                particles[i + OFFSET_PARTICLE_POSITION_PREVIOUS_Y] = positionY
+                particles[i_previous + OFFSET_PARTICLE_POSITION_X] = positionX - 1
+                particles[i_previous + OFFSET_PARTICLE_POSITION_Y] = positionY - 1
+                particles[i_previous + OFFSET_PARTICLE_VELOCITY_X] = velocityX
+                particles[i_previous + OFFSET_PARTICLE_VELOCITY_Y] = velocityY
 
                 let accelerationX = 0.0
                 let accelerationY = 0.0
@@ -354,10 +356,10 @@ function Simulation({configuration}) {
                     velocityY = scratchReflection.y * elasticity
                 }
 
-                particles[i + OFFSET_PARTICLE_POSITION_X]=positionX
-                particles[i + OFFSET_PARTICLE_POSITION_Y]=positionY
-                particles[i + OFFSET_PARTICLE_VELOCITY_X]=velocityX
-                particles[i + OFFSET_PARTICLE_VELOCITY_Y]=velocityY
+                particles[i_current + OFFSET_PARTICLE_POSITION_X] = positionX
+                particles[i_current + OFFSET_PARTICLE_POSITION_Y] = positionY
+                particles[i_current + OFFSET_PARTICLE_VELOCITY_X] = velocityX
+                particles[i_current + OFFSET_PARTICLE_VELOCITY_Y] = velocityY
             }
         }
 
@@ -379,9 +381,9 @@ function Simulation({configuration}) {
             gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, STRIDE_PARTICLES * 4, 0)
 
             gl.enableVertexAttribArray(velocityAttributeLocation)
-            gl.vertexAttribPointer(velocityAttributeLocation, 2, gl.FLOAT, false, STRIDE_PARTICLES * 4, 4 * 4)
+            gl.vertexAttribPointer(velocityAttributeLocation, 2, gl.FLOAT, false, STRIDE_PARTICLES * 4, 2 * 4)
 
-            gl.drawArrays(gl.POINTS, 0, particles.length / STRIDE_PARTICLES)
+            gl.drawArrays(gl.LINES, 0, particles.length / STRIDE_PARTICLES)
         }
 
         let time_last = 0;
