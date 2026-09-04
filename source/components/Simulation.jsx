@@ -169,7 +169,7 @@ function Simulation({configuration}) {
 
     useEffect(() => {
         const canvas = canvasReference.current
-        const gl = canvas.getContext("webgl2")
+        const gl = canvas.getContext("webgl2", {antialias: true})
 
         function createShader(gl, type, source) {
             const shader = gl.createShader(type)
@@ -199,7 +199,7 @@ function Simulation({configuration}) {
             if(success)
                 return program
 
-            const error = gl.getProgramIngoLog(program)
+            const error = gl.getProgramInfoLog(program)
             console.log(error)
 
             gl.deleteProgram(program)
@@ -231,7 +231,6 @@ function Simulation({configuration}) {
         gl.bufferData(gl.ARRAY_BUFFER, particles, gl.DYNAMIC_DRAW)
 
         gl.clearColor(0, 0, 0, 0)
-
 
         const canvasParent = canvas.parentNode
         function resize() {
@@ -367,7 +366,7 @@ function Simulation({configuration}) {
         function render() {
             const config = configurationReference.current
 
-            gl.clear(gl.COLOR_BUFFER_BIT || gl.DEPTH_BUFFER_BIT)
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
             gl.useProgram(program)
 
@@ -375,7 +374,8 @@ function Simulation({configuration}) {
 
             gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
 
-            gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(particles))
+            gl.bufferData(gl.ARRAY_BUFFER, particles.length * 4, gl.DYNAMIC_DRAW)
+            gl.bufferSubData(gl.ARRAY_BUFFER, 0, particles)
 
             gl.enableVertexAttribArray(positionAttributeLocation)
             gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, STRIDE_PARTICLES * 4, 0)
