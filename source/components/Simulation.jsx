@@ -73,14 +73,14 @@ function onTouchStart(event, vertices) {
     const touches = event.touches
     for (let index = 0; index < touches.length; index++) {
         const touch = touches[index]
-        const i = (index + touch.identifier + 1) * STRIDE_VERTICES
+        const i = (touch.identifier + 1) * STRIDE_VERTICES
 
         if(vertices[i + OFFSET_VERTEX_FACTOR] !== 0.0)
             continue
 
         const rectangle = event.target.getBoundingClientRect()
-        vertices[i + OFFSET_VERTEX_POSITION_X] = event.clientX - rectangle.left
-        vertices[i + OFFSET_VERTEX_POSITION_Y] = event.clientY - rectangle.top
+        vertices[i + OFFSET_VERTEX_POSITION_X] = touch.clientX - rectangle.left
+        vertices[i + OFFSET_VERTEX_POSITION_Y] = touch.clientY - rectangle.top
         vertices[i + OFFSET_VERTEX_FACTOR] =  1.0
     }
 }
@@ -89,14 +89,14 @@ function onTouchMove(event, vertices) {
     const touches = event.touches
     for (let index = 0; index < touches.length; index++) {
         const touch = touches[index]
-        const i = (index + touch.identifier + 1) * STRIDE_VERTICES
+        const i = (touch.identifier + 1) * STRIDE_VERTICES
 
         if(vertices[i + OFFSET_VERTEX_FACTOR] === 0.0)
             continue
 
         const rectangle = event.target.getBoundingClientRect()
-        vertices[i + OFFSET_VERTEX_POSITION_X] =  event.clientX - rectangle.left
-        vertices[i + OFFSET_VERTEX_POSITION_Y] =  event.clientY - rectangle.top
+        vertices[i + OFFSET_VERTEX_POSITION_X] =  touch.clientX - rectangle.left
+        vertices[i + OFFSET_VERTEX_POSITION_Y] =  touch.clientY - rectangle.top
     }
 }
 
@@ -104,7 +104,7 @@ function onTouchEnd(event, vertices) {
     const touches = event.changedTouches
     for (let index = 0; index < touches.length; index++) {
         const touch = touches[index]
-        const i = (index + touch.identifier + 1) * STRIDE_VERTICES
+        const i = (touch.identifier + 1) * STRIDE_VERTICES
         vertices[i + OFFSET_VERTEX_FACTOR] = 0.0
     }
 }
@@ -113,7 +113,7 @@ function onTouchCancel(event, vertices) {
     const touches = event.changedTouches
     for (let index = 0; index < touches.length; index++) {
         const touch = touches[index]
-        const i = (index + touch.identifier + 1) * STRIDE_VERTICES
+        const i = (touch.identifier + 1) * STRIDE_VERTICES
         vertices[i + OFFSET_VERTEX_FACTOR] = 0.0
     }
 }
@@ -130,7 +130,6 @@ void main() {
     v_velocity = a_velocity;
 
     vec2 clip_space = (a_position / u_resolution) * 2.0 - 1.0;
-    gl_PointSize = 2.5;
     gl_Position = vec4(clip_space.x, -clip_space.y, 0.0, 1.0);
 }
 `)
@@ -232,10 +231,8 @@ function Simulation({configuration}) {
 
         gl.bufferData(gl.ARRAY_BUFFER, particles, gl.DYNAMIC_DRAW)
 
-        gl.viewport(0, 0, canvas.width, canvas.height)
-
         gl.clearColor(0, 0, 0, 0)
-        gl.clear(gl.COLOR_BUFFER_BIT)
+
 
         const canvasParent = canvas.parentNode
         function resize() {
@@ -364,8 +361,11 @@ function Simulation({configuration}) {
             }
         }
 
+        gl.enable(gl.DEPTH_TEST)
         function render() {
             const config = configurationReference.current
+
+            gl.clear(gl.COLOR_BUFFER_BIT || gl.DEPTH_BUFFER_BIT)
 
             gl.useProgram(program)
 
