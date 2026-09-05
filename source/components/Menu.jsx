@@ -19,7 +19,7 @@ function Menu({configuration, onChange, onClose}) {
         const {name, value, type} = event.target
 
         let parsed = value
-        if(type === "range" || type === "number")
+        if (type === "range" || type === "number")
             parsed = Number(value)
 
         onChange(name, parsed)

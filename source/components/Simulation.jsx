@@ -47,7 +47,7 @@ function onMouseDown(event, vertices) {
     const rectangle = event.target.getBoundingClientRect()
     vertices[OFFSET_VERTEX_POSITION_X] = event.clientX - rectangle.left
     vertices[OFFSET_VERTEX_POSITION_Y] = event.clientY - rectangle.top
-    vertices[OFFSET_VERTEX_FACTOR] =  1.0
+    vertices[OFFSET_VERTEX_FACTOR] = 1.0
 }
 
 function onMouseMove(event, vertices) {
@@ -73,13 +73,13 @@ function onTouchStart(event, vertices) {
         const touch = touches[index]
         const i = (touch.identifier + 1) * STRIDE_VERTICES
 
-        if(vertices[i + OFFSET_VERTEX_FACTOR] !== 0.0)
+        if (vertices[i + OFFSET_VERTEX_FACTOR] !== 0.0)
             continue
 
         const rectangle = event.target.getBoundingClientRect()
         vertices[i + OFFSET_VERTEX_POSITION_X] = touch.clientX - rectangle.left
         vertices[i + OFFSET_VERTEX_POSITION_Y] = touch.clientY - rectangle.top
-        vertices[i + OFFSET_VERTEX_FACTOR] =  1.0
+        vertices[i + OFFSET_VERTEX_FACTOR] = 1.0
     }
 }
 
@@ -89,12 +89,12 @@ function onTouchMove(event, vertices) {
         const touch = touches[index]
         const i = (touch.identifier + 1) * STRIDE_VERTICES
 
-        if(vertices[i + OFFSET_VERTEX_FACTOR] === 0.0)
+        if (vertices[i + OFFSET_VERTEX_FACTOR] === 0.0)
             continue
 
         const rectangle = event.target.getBoundingClientRect()
-        vertices[i + OFFSET_VERTEX_POSITION_X] =  touch.clientX - rectangle.left
-        vertices[i + OFFSET_VERTEX_POSITION_Y] =  touch.clientY - rectangle.top
+        vertices[i + OFFSET_VERTEX_POSITION_X] = touch.clientX - rectangle.left
+        vertices[i + OFFSET_VERTEX_POSITION_Y] = touch.clientY - rectangle.top
     }
 }
 
@@ -177,7 +177,7 @@ function Simulation({configuration}) {
             gl.compileShader(shader)
 
             const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS)
-            if(success)
+            if (success)
                 return shader
 
             const error = gl.getShaderInfoLog(shader)
@@ -196,7 +196,7 @@ function Simulation({configuration}) {
             gl.linkProgram(program)
 
             const success = gl.getProgramParameter(program, gl.LINK_STATUS)
-            if(success)
+            if (success)
                 return program
 
             const error = gl.getProgramInfoLog(program)
@@ -233,11 +233,13 @@ function Simulation({configuration}) {
         gl.clearColor(0, 0, 0, 0)
 
         const canvasParent = canvas.parentNode
+
         function resize() {
             canvas.width = canvasParent.offsetWidth
             canvas.height = canvasParent.offsetHeight
             gl.viewport(0, 0, canvas.width, canvas.height)
         }
+
         window.addEventListener("resize", resize)
         resize()
 
@@ -282,7 +284,7 @@ function Simulation({configuration}) {
                 for (let indexVertex = 0; indexVertex < vertices.length / STRIDE_VERTICES; indexVertex++) {
                     const iVertex = indexVertex * STRIDE_VERTICES
                     const factor = vertices[iVertex + OFFSET_VERTEX_FACTOR]
-                    if(factor === 0.0)
+                    if (factor === 0.0)
                         continue
 
                     const deltaX = vertices[iVertex + OFFSET_VERTEX_POSITION_X] - positionX
@@ -304,7 +306,7 @@ function Simulation({configuration}) {
                 velocityY += accelerationY * time_delta
 
                 let speed = Math.hypot(velocityX, velocityY)
-                if(speed > 0.0) {
+                if (speed > 0.0) {
                     const reduction = friction * time_delta
                     const result = Math.max(0.0, speed - reduction)
                     const ratio = result / speed
@@ -320,13 +322,19 @@ function Simulation({configuration}) {
                 scratchReflection.y = velocityY
 
                 if (positionX < 0.0) {
-                    positionX = 0.0
+                    const ratio = Math.abs(positionX) / Math.abs(velocityX * time_delta)
+
+                    positionX -= velocityX * ratio * time_delta
+                    positionY -= velocityY * ratio * time_delta
 
                     applyRoughNormal(scratchNormal, 0.0, roughness)
                     reflect(scratchReflection, scratchNormal)
 
                     velocityX = scratchReflection.x * elasticity
                     velocityY = scratchReflection.y * elasticity
+
+                    positionX += velocityX * (1 - ratio) * time_delta
+                    positionY += velocityY * (1 - ratio) * time_delta
                 } else if (positionX >= canvas.width) {
                     positionX = canvas.width - 1.0
 
@@ -363,6 +371,7 @@ function Simulation({configuration}) {
         }
 
         gl.enable(gl.DEPTH_TEST)
+
         function render() {
             const config = configurationReference.current
 
@@ -399,6 +408,7 @@ function Simulation({configuration}) {
 
             animation_frame_id = requestAnimationFrame(loop)
         }
+
         animation_frame_id = requestAnimationFrame(loop)
 
         return () => {
