@@ -336,31 +336,49 @@ function Simulation({configuration}) {
                     positionX += velocityX * (1 - ratio) * time_delta
                     positionY += velocityY * (1 - ratio) * time_delta
                 } else if (positionX >= canvas.width) {
-                    positionX = canvas.width - 1.0
+                    const ratio = Math.abs(positionX - canvas.width) / Math.abs(velocityX * time_delta)
+
+                    positionX -= velocityX * ratio * time_delta
+                    positionY -= velocityY * ratio * time_delta
 
                     applyRoughNormal(scratchNormal, PI, roughness)
                     reflect(scratchReflection, scratchNormal)
 
                     velocityX = scratchReflection.x * elasticity
                     velocityY = scratchReflection.y * elasticity
+
+                    positionX += velocityX * (1 - ratio) * time_delta
+                    positionY += velocityY * (1 - ratio) * time_delta
                 }
 
                 if (positionY < 0.0) {
-                    positionY = 0.0
+                    const ratio = Math.abs(positionY) / Math.abs(velocityY * time_delta)
+
+                    positionX -= velocityX * ratio * time_delta
+                    positionY -= velocityY * ratio * time_delta
 
                     applyRoughNormal(scratchNormal, PI_HALF, roughness)
                     reflect(scratchReflection, scratchNormal)
 
                     velocityX = scratchReflection.x * elasticity
                     velocityY = scratchReflection.y * elasticity
+
+                    positionX += velocityX * (1 - ratio) * time_delta
+                    positionY += velocityY * (1 - ratio) * time_delta
                 } else if (positionY >= canvas.height) {
-                    positionY = canvas.height - 1.0
+                    const ratio = Math.abs(positionY - canvas.height) / Math.abs(velocityY * time_delta)
+
+                    positionX -= velocityX * ratio * time_delta
+                    positionY -= velocityY * ratio * time_delta
 
                     applyRoughNormal(scratchNormal, -PI_HALF, roughness)
                     reflect(scratchReflection, scratchNormal)
 
                     velocityX = scratchReflection.x * elasticity
                     velocityY = scratchReflection.y * elasticity
+
+                    positionX += velocityX * (1 - ratio) * time_delta
+                    positionY += velocityY * (1 - ratio) * time_delta
                 }
 
                 particles[i_current + OFFSET_PARTICLE_POSITION_X] = positionX
