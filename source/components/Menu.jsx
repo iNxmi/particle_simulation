@@ -47,9 +47,6 @@ function Menu({configuration, onChange, onClose}) {
                     <Field label="Gravitation Radius" accent="px">
                         <Input name="gravitationRadius" type="number" value={configuration.gravitationRadius} min={1} step={0.01} onChange={handleChange}/>
                     </Field>
-                    <Field label="Intensity Expression">
-                        <Input name="intensityExpression" type="text" value={configuration.intensityExpression} onChange={handleChange}/>
-                    </Field>
                     <Field label="Friction" accent="px / s">
                         <Input name="friction" type="number" value={configuration.friction} step={0.01} onChange={handleChange}/>
                     </Field>

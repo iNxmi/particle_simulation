@@ -1,79 +1,10 @@
 import {useEffect, useRef} from "react"
-import {Vec2 as Vector} from "gl-matrix"
-import {compile} from "mathjs"
-import vertex_shader_source from "./shader.vs?raw"
-import fragment_shader_source from "./shader.fs?raw"
 
-const STRIDE_PARTICLES = 4
-const OFFSET_PARTICLE_POSITION_X = 0
-const OFFSET_PARTICLE_POSITION_Y = 1
-const OFFSET_PARTICLE_VELOCITY_X = 2
-const OFFSET_PARTICLE_VELOCITY_Y = 3
+import shader_simulation_vertex_source from "./shader/simulation.vsh?raw"
+import shader_simulation_fragment_source from "./shader/simulation.fsh?raw"
 
-const STRIDE_VERTICES = 3
-const OFFSET_VERTEX_POSITION_X = 0
-const OFFSET_VERTEX_POSITION_Y = 1
-const OFFSET_VERTEX_FACTOR = 2
-
-const STRIDE_MESH = 4
-const OFFSET_MESH_POSITION_X = 0
-const OFFSET_MESH_POSITION_Y = 1
-const OFFSET_MESH_VELOCITY_X = 2
-const OFFSET_MESH_VELOCITY_Y = 3
-
-const PI = Math.PI
-const PI_HALF = Math.PI * 0.5
-
-const scratchNormal = new Vector()
-const scratchReflection = new Vector()
-
-function applyRoughNormal(out, normalRadian, roughness) {
-    const deviation = (Math.random() * 2.0 - 1.0) * PI_HALF * roughness
-    const angle = normalRadian + deviation
-
-    out.x = Math.cos(angle)
-    out.y = Math.sin(angle)
-}
-
-function reflect(incident, normal) {
-    const dot = Vector.dot(incident, normal)
-    Vector.scaleAndAdd(incident, incident, normal, -2.0 * dot)
-}
-
-function remap(value, in_min, in_max, out_min, out_max) {
-    return out_min + ((value - in_min) * (out_max - out_min)) / (in_max - in_min)
-}
-
-function clamp(value, min, max) {
-    return Math.min(Math.max(value, min), max)
-}
-
-function onMouseDown(event, vertices) {
-    if (vertices[OFFSET_VERTEX_FACTOR] !== 0.0)
-        return
-
-    const rectangle = event.target.getBoundingClientRect()
-    vertices[OFFSET_VERTEX_POSITION_X] = event.clientX - rectangle.left
-    vertices[OFFSET_VERTEX_POSITION_Y] = event.clientY - rectangle.top
-    vertices[OFFSET_VERTEX_FACTOR] = 1.0
-}
-
-function onMouseMove(event, vertices) {
-    if (vertices[OFFSET_VERTEX_FACTOR] === 0.0)
-        return
-
-    const rectangle = event.target.getBoundingClientRect()
-    vertices[OFFSET_VERTEX_POSITION_X] = event.clientX - rectangle.left
-    vertices[OFFSET_VERTEX_POSITION_Y] = event.clientY - rectangle.top
-}
-
-function onMouseUp(vertices) {
-    vertices[OFFSET_VERTEX_FACTOR] = 0.0
-}
-
-function onMouseLeave(vertices) {
-    vertices[OFFSET_VERTEX_FACTOR] = 0.0
-}
+import shader_particle_vertex_source from "./shader/particle.vsh?raw"
+import shader_particle_fragment_source from "./shader/particle.fsh?raw"
 
 function onTouchStart(event, vertices) {
     const touches = event.touches
@@ -133,79 +64,96 @@ function Simulation({configuration}) {
         configurationReference.current = configuration;
     }, [configuration]);
 
-    const intensityFunctionReference = useRef(null)
-    useEffect(() => {
-        intensityFunctionReference.current = compile(configuration.intensityExpression)
-    }, [configuration.intensityExpression]);
-
     useEffect(() => {
         const canvas = canvasReference.current
-        const gl = canvas.getContext("webgl2", {antialias: true})
+        const gl = canvas.getContext("webgl2", {
+            antialias: true
+        })
+        gl.clearColor(0, 0, 0, 0)
 
         function createShader(gl, type, source) {
             const shader = gl.createShader(type)
             gl.shaderSource(shader, source)
-            gl.compileShader(shader)
 
+            gl.compileShader(shader)
             const success = gl.getShaderParameter(shader, gl.COMPILE_STATUS)
             if (success)
                 return shader
 
             const error = gl.getShaderInfoLog(shader)
-            console.log(error)
-
             gl.deleteShader(shader)
+
+            throw new Error(error)
         }
 
-        const shaderVertex = createShader(gl, gl.VERTEX_SHADER, vertex_shader_source)
-        const shaderFragment = createShader(gl, gl.FRAGMENT_SHADER, fragment_shader_source)
-
-        function createProgram(gl, vertexShader, fragmentShader) {
+        function createProgram(gl, shader_vertex, shader_fragment, lambda) {
             const program = gl.createProgram()
-            gl.attachShader(program, vertexShader)
-            gl.attachShader(program, fragmentShader)
+            gl.attachShader(program, shader_vertex)
+            gl.attachShader(program, shader_fragment)
+            if(lambda)
+                lambda(gl, program)
             gl.linkProgram(program)
-
             const success = gl.getProgramParameter(program, gl.LINK_STATUS)
             if (success)
                 return program
 
             const error = gl.getProgramInfoLog(program)
-            console.log(error)
-
             gl.deleteProgram(program)
+
+            throw new Error(error)
         }
 
-        const program = createProgram(gl, shaderVertex, shaderFragment)
+        const shader_simulation_vertex = createShader(gl, gl.VERTEX_SHADER, shader_simulation_vertex_source)
+        const shader_simulation_fragment = createShader(gl, gl.FRAGMENT_SHADER, shader_simulation_fragment_source)
+        const program_simulation = createProgram(gl, shader_simulation_vertex, shader_simulation_fragment, (gl, program) => {
+            gl.transformFeedbackVaryings(program, ["out_position", "out_velocity"], gl.INTERLEAVED_ATTRIBS)
+        })
 
-        const resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution");
-        const positionAttributeLocation = gl.getAttribLocation(program, "a_position")
-        const velocityAttributeLocation = gl.getAttribLocation(program, "a_velocity")
+        const shader_particle_vertex = createShader(gl, gl.VERTEX_SHADER, shader_particle_vertex_source)
+        const shader_particle_fragment = createShader(gl, gl.FRAGMENT_SHADER, shader_particle_fragment_source)
+        const program_particle = createProgram(gl, shader_particle_vertex, shader_particle_fragment)
 
-        const vertexBuffer = gl.createBuffer()
-        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
-
-        const particles = new Float32Array(configurationReference.current.numberOfParticles * STRIDE_PARTICLES)
-        for (let index = 0; index < configurationReference.current.numberOfParticles; index++) {
-            const i_current = index * 2 * STRIDE_PARTICLES
-            const i_previous = (index * 2 + 1) * STRIDE_PARTICLES
-
-            const x = Math.random() * 800
-            const y = Math.random() * 800
-
-            particles[i_current + OFFSET_PARTICLE_POSITION_X] = x
-            particles[i_current + OFFSET_PARTICLE_POSITION_Y] = y
-            particles[i_previous + OFFSET_PARTICLE_POSITION_X] = x
-            particles[i_previous + OFFSET_PARTICLE_POSITION_Y] = y
+        const NUMBER_OF_PARTICLES = 3_000_000
+        const NUMBER_OF_FLOATS = 4
+        const particles = new Float32Array(NUMBER_OF_PARTICLES * NUMBER_OF_FLOATS)
+        for(let index = 0; index < NUMBER_OF_PARTICLES; index++) {
+            particles[index * 4] = Math.random() * 800.0
+            particles[index * 4 + 1] = Math.random() * 800.0
         }
-        const mesh = new Float32Array(configurationReference.current.numberOfParticles * STRIDE_PARTICLES * 3)
 
-        gl.bufferData(gl.ARRAY_BUFFER, mesh, gl.DYNAMIC_DRAW)
+        const buffers = [gl.createBuffer(), gl.createBuffer()]
+        const vaos = [gl.createVertexArray(), gl.createVertexArray()]
+        for(let index = 0; index < 2; index++) {
+            const vao = vaos[index]
+            gl.bindVertexArray(vao)
 
-        gl.clearColor(0, 0, 0, 0)
+            const buffer = buffers[index]
+            gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+            gl.bufferData(gl.ARRAY_BUFFER, particles, gl.DYNAMIC_COPY)
+
+            const location_position = gl.getAttribLocation(program_simulation, "in_position")
+            gl.enableVertexAttribArray(location_position)
+            gl.vertexAttribPointer(location_position, 2, gl.FLOAT, false, 2 * 8, 0)
+
+            const location_velocity = gl.getAttribLocation(program_simulation, "in_velocity")
+            gl.enableVertexAttribArray(location_velocity)
+            gl.vertexAttribPointer(location_velocity, 2, gl.FLOAT, false, 2 * 8, 1 * 8)
+        }
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, null)
+        gl.bindVertexArray(null)
+
+        let index_a = 0
+        let index_b = 1
+
+        const uniform_time_delta = gl.getUniformLocation(program_simulation, "u_time_delta");
+        const uniform_mouse_position = gl.getUniformLocation(program_simulation, "u_mouse_position");
+        const uniform_mouse_enabled = gl.getUniformLocation(program_simulation, "u_mouse_enabled");
+        const uniform_resolution = gl.getUniformLocation(program_particle, "u_resolution");
+
+        const transform_feedback = gl.createTransformFeedback()
 
         const canvasParent = canvas.parentNode
-
         function resize() {
             canvas.width = canvasParent.offsetWidth
             canvas.height = canvasParent.offsetHeight
@@ -215,6 +163,36 @@ function Simulation({configuration}) {
         window.addEventListener("resize", resize)
         resize()
 
+        let mouse_position_x = 0
+        let mouse_position_y = 0
+        let mouse_enabled = false
+        function onMouseDown(event, vertices) {
+            if(mouse_enabled)
+                return
+
+            const rectangle = event.target.getBoundingClientRect()
+            mouse_position_x = event.clientX - rectangle.left
+            mouse_position_y = event.clientY - rectangle.top
+            mouse_enabled = true
+        }
+
+        function onMouseMove(event, vertices) {
+            if(!mouse_enabled)
+                return
+
+            const rectangle = event.target.getBoundingClientRect()
+            mouse_position_x = event.clientX - rectangle.left
+            mouse_position_y = event.clientY - rectangle.top
+        }
+
+        function onMouseUp(vertices) {
+            mouse_enabled = false
+        }
+
+        function onMouseLeave(vertices) {
+            mouse_enabled = false
+        }
+
         const vertices = new Float32Array(8 * 3)
         canvas.addEventListener("mousemove", (event) => onMouseMove(event, vertices))
         canvas.addEventListener("mousedown", (event) => onMouseDown(event, vertices))
@@ -223,326 +201,48 @@ function Simulation({configuration}) {
         canvas.addEventListener("contextmenu", (event) => {
             event.preventDefault()
         })
-        canvas.addEventListener("touchmove", (event) => onTouchMove(event, vertices))
-        canvas.addEventListener("touchstart", (event) => onTouchStart(event, vertices))
-        canvas.addEventListener("touchend", (event) => onTouchEnd(event, vertices))
-        canvas.addEventListener("touchcancel", (event) => onTouchCancel(event, vertices))
-
-        function update(time_delta) {
-            const config = configurationReference.current
-
-            const gravitation = config.gravitation
-            const gravitationRadius = config.gravitationRadius
-            const friction = config.friction
-            const elasticity = config.elasticity
-            const roughness = config.roughness
-
-            mesh.fill(0.0)
-            let indexMesh = 0
-            for (let index = 0; index < config.numberOfParticles; index++) {
-                const i_current = index * STRIDE_PARTICLES
-
-                let positionY = particles[i_current + OFFSET_PARTICLE_POSITION_Y]
-                let positionX = particles[i_current + OFFSET_PARTICLE_POSITION_X]
-                let velocityX = particles[i_current + OFFSET_PARTICLE_VELOCITY_X]
-                let velocityY = particles[i_current + OFFSET_PARTICLE_VELOCITY_Y]
-
-                let positionXLast = positionX - 1
-                let positionYLast = positionY - 1
-                let velocityXLast = velocityX
-                let velocityYLast = velocityY
-
-                let accelerationX = 0.0
-                let accelerationY = 0.0
-                for (let indexVertex = 0; indexVertex < vertices.length / STRIDE_VERTICES; indexVertex++) {
-                    const iVertex = indexVertex * STRIDE_VERTICES
-                    const factor = vertices[iVertex + OFFSET_VERTEX_FACTOR]
-                    if (factor === 0.0)
-                        continue
-
-                    const deltaX = vertices[iVertex + OFFSET_VERTEX_POSITION_X] - positionX
-                    const deltaY = vertices[iVertex + OFFSET_VERTEX_POSITION_Y] - positionY
-                    const distance = Math.hypot(deltaX, deltaY)
-
-                    if (distance >= gravitationRadius)
-                        continue
-
-                    const normalized = distance / gravitationRadius
-                    const intensity = -Math.pow(normalized, 5) + 1
-                    const scalar = (gravitation * intensity) / distance
-
-                    accelerationX += deltaX * scalar
-                    accelerationY += deltaY * scalar
-                }
-
-                velocityX += accelerationX * time_delta
-                velocityY += accelerationY * time_delta
-
-                let speed = Math.hypot(velocityX, velocityY)
-                // if(speed > SPEED_MAX) {
-                //     velocityX = velocityX / speed * SPEED_MAX
-                //     velocityY = velocityY / speed * SPEED_MAX
-                // }
-
-                if (speed > 0.0) {
-                    const reduction = friction * time_delta
-                    const result = Math.max(0.0, speed - reduction)
-                    const ratio = result / speed
-
-                    velocityX *= ratio
-                    velocityY *= ratio
-                }
-
-                positionX += velocityX * time_delta
-                positionY += velocityY * time_delta
-
-                if (positionX < 0.0) {
-                    const ratio = Math.abs(positionX) / Math.abs(velocityX * time_delta)
-
-                    positionX -= velocityX * ratio * time_delta
-                    positionY -= velocityY * ratio * time_delta
-
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
-                    indexMesh += 2
-
-                    positionXLast = positionX
-                    positionYLast = positionY
-                    velocityXLast = velocityX
-                    velocityYLast = velocityY
-
-                    applyRoughNormal(scratchNormal, 0.0, roughness)
-
-                    scratchReflection.x = velocityX
-                    scratchReflection.y = velocityY
-                    reflect(scratchReflection, scratchNormal)
-
-                    velocityX = scratchReflection.x * elasticity
-                    velocityY = scratchReflection.y * elasticity
-
-                    positionX += velocityX * (1 - ratio) * time_delta
-                    positionY += velocityY * (1 - ratio) * time_delta
-
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
-                    indexMesh += 2
-
-                    positionXLast = positionX
-                    positionYLast = positionY
-                    velocityXLast = velocityX
-                    velocityYLast = velocityY
-                } else if (positionX >= canvas.width) {
-                    const ratio = Math.abs(positionX - canvas.width) / Math.abs(velocityX * time_delta)
-
-                    positionX -= velocityX * ratio * time_delta
-                    positionY -= velocityY * ratio * time_delta
-
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
-                    indexMesh += 2
-
-                    positionXLast = positionX
-                    positionYLast = positionY
-                    velocityXLast = velocityX
-                    velocityYLast = velocityY
-
-                    applyRoughNormal(scratchNormal, PI, roughness)
-
-                    scratchReflection.x = velocityX
-                    scratchReflection.y = velocityY
-                    reflect(scratchReflection, scratchNormal)
-
-                    velocityX = scratchReflection.x * elasticity
-                    velocityY = scratchReflection.y * elasticity
-
-                    positionX += velocityX * (1 - ratio) * time_delta
-                    positionY += velocityY * (1 - ratio) * time_delta
-
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
-                    indexMesh += 2
-
-                    positionXLast = positionX
-                    positionYLast = positionY
-                    velocityXLast = velocityX
-                    velocityYLast = velocityY
-                }
-
-                if (positionY < 0.0) {
-                    const ratio = Math.abs(positionY) / Math.abs(velocityY * time_delta)
-
-                    positionX -= velocityX * ratio * time_delta
-                    positionY -= velocityY * ratio * time_delta
-
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
-                    indexMesh += 2
-
-                    positionXLast = positionX
-                    positionYLast = positionY
-                    velocityXLast = velocityX
-                    velocityYLast = velocityY
-
-                    applyRoughNormal(scratchNormal, PI_HALF, roughness)
-
-                    scratchReflection.x = velocityX
-                    scratchReflection.y = velocityY
-                    reflect(scratchReflection, scratchNormal)
-
-                    velocityX = scratchReflection.x * elasticity
-                    velocityY = scratchReflection.y * elasticity
-
-                    positionX += velocityX * (1 - ratio) * time_delta
-                    positionY += velocityY * (1 - ratio) * time_delta
-
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
-                    indexMesh += 2
-
-                    positionXLast = positionX
-                    positionYLast = positionY
-                    velocityXLast = velocityX
-                    velocityYLast = velocityY
-                } else if (positionY >= canvas.height) {
-                    const ratio = Math.abs(positionY - canvas.height) / Math.abs(velocityY * time_delta)
-
-                    positionX -= velocityX * ratio * time_delta
-                    positionY -= velocityY * ratio * time_delta
-
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
-                    indexMesh += 2
-
-                    positionXLast = positionX
-                    positionYLast = positionY
-                    velocityXLast = velocityX
-                    velocityYLast = velocityY
-
-                    applyRoughNormal(scratchNormal, -PI_HALF, roughness)
-
-                    scratchReflection.x = velocityX
-                    scratchReflection.y = velocityY
-                    reflect(scratchReflection, scratchNormal)
-
-                    velocityX = scratchReflection.x * elasticity
-                    velocityY = scratchReflection.y * elasticity
-
-                    positionX += velocityX * (1 - ratio) * time_delta
-                    positionY += velocityY * (1 - ratio) * time_delta
-
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
-                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
-                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
-                    indexMesh += 2
-
-                    positionXLast = positionX
-                    positionYLast = positionY
-                    velocityXLast = velocityX
-                    velocityYLast = velocityY
-                }
-
-                particles[i_current + OFFSET_PARTICLE_POSITION_X] = positionX
-                particles[i_current + OFFSET_PARTICLE_POSITION_Y] = positionY
-                particles[i_current + OFFSET_PARTICLE_VELOCITY_X] = velocityX
-                particles[i_current + OFFSET_PARTICLE_VELOCITY_Y] = velocityY
-
-                mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
-                mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
-                mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
-                mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
-                mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
-                mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
-                mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
-                mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
-                indexMesh += 2
-
-                positionXLast = positionX
-                positionYLast = positionY
-                velocityXLast = velocityX
-                velocityYLast = velocityY
-            }
-        }
-
-        gl.enable(gl.DEPTH_TEST)
-
-        function render() {
-            const config = configurationReference.current
-
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-
-            gl.useProgram(program)
-
-            gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height)
-
-            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
-            gl.bufferSubData(gl.ARRAY_BUFFER, 0, mesh)
-
-            gl.enableVertexAttribArray(positionAttributeLocation)
-            gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, STRIDE_MESH * 4, 0)
-
-            gl.enableVertexAttribArray(velocityAttributeLocation)
-            gl.vertexAttribPointer(velocityAttributeLocation, 2, gl.FLOAT, false, STRIDE_MESH * 4, 2 * 4)
-
-            gl.drawArrays(gl.LINES, 0, mesh.length / STRIDE_MESH)
-        }
-
-        let time_last = 0;
+        // canvas.addEventListener("touchmove", (event) => onTouchMove(event, vertices))
+        // canvas.addEventListener("touchstart", (event) => onTouchStart(event, vertices))
+        // canvas.addEventListener("touchend", (event) => onTouchEnd(event, vertices))
+        // canvas.addEventListener("touchcancel", (event) => onTouchCancel(event, vertices))
+
+        let time_last_seconds = 0
         let animation_frame_id = 0
+        function loop(time_now_milliseconds) {
+            const time_now_seconds = time_now_milliseconds / 1000.0
+            const time_delta_seconds = time_now_seconds - time_last_seconds
+            time_last_seconds = time_now_seconds
 
-        function loop(time_now_ms) {
-            const time_now_s = time_now_ms / 1000.0
-            const time_delta = time_now_s - time_last
-            time_last = time_now_s
+            gl.useProgram(program_simulation)
+            gl.uniform1f(uniform_time_delta, time_delta_seconds)
+            gl.uniform2f(uniform_mouse_position, mouse_position_x, mouse_position_y)
+            gl.uniform1i(uniform_mouse_enabled, mouse_enabled)
 
-            update(time_delta)
-            render()
+            const vao_a = vaos[index_a]
+            const buffer_b = buffers[index_b]
+            gl.bindVertexArray(vao_a)
+            gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transform_feedback)
+            gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buffer_b)
+
+            gl.enable(gl.RASTERIZER_DISCARD)
+            gl.beginTransformFeedback(gl.POINTS)
+            gl.drawArrays(gl.POINTS, 0, NUMBER_OF_PARTICLES)
+            gl.endTransformFeedback()
+            gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null)
+            gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null)
+            gl.bindBuffer(gl.TRANSFORM_FEEDBACK_BUFFER, null)
+            gl.disable(gl.RASTERIZER_DISCARD)
+
+            const vao_b = vaos[index_b]
+            gl.clear(gl.COLOR_BUFFER_BIT)
+            gl.useProgram(program_particle)
+            gl.uniform2f(uniform_resolution, canvas.width, canvas.height)
+            gl.bindVertexArray(vao_b)
+            gl.drawArrays(gl.POINTS, 0, NUMBER_OF_PARTICLES)
+
+            let index_temporary = index_a
+            index_a = index_b
+            index_b = index_temporary
 
             animation_frame_id = requestAnimationFrame(loop)
         }

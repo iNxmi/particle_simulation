@@ -24,7 +24,6 @@ function Application() {
         numberOfParticles: 10000,
         gravitation: 2500.0,
         gravitationRadius: 250.0,
-        intensityExpression: "-x^5 + 1",
         friction: 300.0,
         elasticity: 0.67,
         roughness: 0.42
