@@ -13,6 +13,12 @@ const OFFSET_VERTEX_POSITION_X = 0
 const OFFSET_VERTEX_POSITION_Y = 1
 const OFFSET_VERTEX_FACTOR = 2
 
+const STRIDE_MESH = 4
+const OFFSET_MESH_POSITION_X = 0
+const OFFSET_MESH_POSITION_Y = 1
+const OFFSET_MESH_VELOCITY_X = 2
+const OFFSET_MESH_VELOCITY_Y = 3
+
 const PI = Math.PI
 const PI_HALF = Math.PI * 0.5
 
@@ -146,7 +152,7 @@ vec3 hsv2rgb(vec3 c) {
 }
 
 void main() {
-    float hue = length(v_velocity) / 1024.0;
+    float hue = length(v_velocity) / 2048.0;
     vec3 hsv = vec3(clamp(hue, 0.0, 1.0), 1.0, 1.0);
     vec3 rgb = hsv2rgb(hsv);
     fragColor = vec4(rgb, 1.0);
@@ -214,7 +220,7 @@ function Simulation({configuration}) {
         const vertexBuffer = gl.createBuffer()
         gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
 
-        const particles = new Float32Array(configurationReference.current.numberOfParticles * STRIDE_PARTICLES * 2)
+        const particles = new Float32Array(configurationReference.current.numberOfParticles * STRIDE_PARTICLES)
         for (let index = 0; index < configurationReference.current.numberOfParticles; index++) {
             const i_current = index * 2 * STRIDE_PARTICLES
             const i_previous = (index * 2 + 1) * STRIDE_PARTICLES
@@ -227,8 +233,9 @@ function Simulation({configuration}) {
             particles[i_previous + OFFSET_PARTICLE_POSITION_X] = x
             particles[i_previous + OFFSET_PARTICLE_POSITION_Y] = y
         }
+        const mesh = new Float32Array(configurationReference.current.numberOfParticles * STRIDE_PARTICLES * 3)
 
-        gl.bufferData(gl.ARRAY_BUFFER, particles, gl.DYNAMIC_DRAW)
+        gl.bufferData(gl.ARRAY_BUFFER, mesh, gl.DYNAMIC_DRAW)
 
         gl.clearColor(0, 0, 0, 0)
 
@@ -265,19 +272,20 @@ function Simulation({configuration}) {
             const elasticity = config.elasticity
             const roughness = config.roughness
 
+            mesh.fill(0.0)
+            let indexMesh = 0
             for (let index = 0; index < config.numberOfParticles; index++) {
-                const i_current = index * 2 * STRIDE_PARTICLES
-                const i_previous = (index * 2 + 1) * STRIDE_PARTICLES
+                const i_current = index * STRIDE_PARTICLES
 
-                let positionX = particles[i_current + OFFSET_PARTICLE_POSITION_X]
                 let positionY = particles[i_current + OFFSET_PARTICLE_POSITION_Y]
+                let positionX = particles[i_current + OFFSET_PARTICLE_POSITION_X]
                 let velocityX = particles[i_current + OFFSET_PARTICLE_VELOCITY_X]
                 let velocityY = particles[i_current + OFFSET_PARTICLE_VELOCITY_Y]
 
-                particles[i_previous + OFFSET_PARTICLE_POSITION_X] = positionX - 1
-                particles[i_previous + OFFSET_PARTICLE_POSITION_Y] = positionY - 1
-                particles[i_previous + OFFSET_PARTICLE_VELOCITY_X] = velocityX
-                particles[i_previous + OFFSET_PARTICLE_VELOCITY_Y] = velocityY
+                let positionXLast = positionX - 1
+                let positionYLast = positionY - 1
+                let velocityXLast = velocityX
+                let velocityYLast = velocityY
 
                 let accelerationX = 0.0
                 let accelerationY = 0.0
@@ -306,6 +314,11 @@ function Simulation({configuration}) {
                 velocityY += accelerationY * time_delta
 
                 let speed = Math.hypot(velocityX, velocityY)
+                // if(speed > SPEED_MAX) {
+                //     velocityX = velocityX / speed * SPEED_MAX
+                //     velocityY = velocityY / speed * SPEED_MAX
+                // }
+
                 if (speed > 0.0) {
                     const reduction = friction * time_delta
                     const result = Math.max(0.0, speed - reduction)
@@ -318,16 +331,31 @@ function Simulation({configuration}) {
                 positionX += velocityX * time_delta
                 positionY += velocityY * time_delta
 
-                scratchReflection.x = velocityX
-                scratchReflection.y = velocityY
-
                 if (positionX < 0.0) {
                     const ratio = Math.abs(positionX) / Math.abs(velocityX * time_delta)
 
                     positionX -= velocityX * ratio * time_delta
                     positionY -= velocityY * ratio * time_delta
 
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
+                    indexMesh += 2
+
+                    positionXLast = positionX
+                    positionYLast = positionY
+                    velocityXLast = velocityX
+                    velocityYLast = velocityY
+
                     applyRoughNormal(scratchNormal, 0.0, roughness)
+
+                    scratchReflection.x = velocityX
+                    scratchReflection.y = velocityY
                     reflect(scratchReflection, scratchNormal)
 
                     velocityX = scratchReflection.x * elasticity
@@ -335,13 +363,46 @@ function Simulation({configuration}) {
 
                     positionX += velocityX * (1 - ratio) * time_delta
                     positionY += velocityY * (1 - ratio) * time_delta
+
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
+                    indexMesh += 2
+
+                    positionXLast = positionX
+                    positionYLast = positionY
+                    velocityXLast = velocityX
+                    velocityYLast = velocityY
                 } else if (positionX >= canvas.width) {
                     const ratio = Math.abs(positionX - canvas.width) / Math.abs(velocityX * time_delta)
 
                     positionX -= velocityX * ratio * time_delta
                     positionY -= velocityY * ratio * time_delta
 
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
+                    indexMesh += 2
+
+                    positionXLast = positionX
+                    positionYLast = positionY
+                    velocityXLast = velocityX
+                    velocityYLast = velocityY
+
                     applyRoughNormal(scratchNormal, PI, roughness)
+
+                    scratchReflection.x = velocityX
+                    scratchReflection.y = velocityY
                     reflect(scratchReflection, scratchNormal)
 
                     velocityX = scratchReflection.x * elasticity
@@ -349,6 +410,21 @@ function Simulation({configuration}) {
 
                     positionX += velocityX * (1 - ratio) * time_delta
                     positionY += velocityY * (1 - ratio) * time_delta
+
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
+                    indexMesh += 2
+
+                    positionXLast = positionX
+                    positionYLast = positionY
+                    velocityXLast = velocityX
+                    velocityYLast = velocityY
                 }
 
                 if (positionY < 0.0) {
@@ -357,7 +433,25 @@ function Simulation({configuration}) {
                     positionX -= velocityX * ratio * time_delta
                     positionY -= velocityY * ratio * time_delta
 
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
+                    indexMesh += 2
+
+                    positionXLast = positionX
+                    positionYLast = positionY
+                    velocityXLast = velocityX
+                    velocityYLast = velocityY
+
                     applyRoughNormal(scratchNormal, PI_HALF, roughness)
+
+                    scratchReflection.x = velocityX
+                    scratchReflection.y = velocityY
                     reflect(scratchReflection, scratchNormal)
 
                     velocityX = scratchReflection.x * elasticity
@@ -365,13 +459,46 @@ function Simulation({configuration}) {
 
                     positionX += velocityX * (1 - ratio) * time_delta
                     positionY += velocityY * (1 - ratio) * time_delta
+
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
+                    indexMesh += 2
+
+                    positionXLast = positionX
+                    positionYLast = positionY
+                    velocityXLast = velocityX
+                    velocityYLast = velocityY
                 } else if (positionY >= canvas.height) {
                     const ratio = Math.abs(positionY - canvas.height) / Math.abs(velocityY * time_delta)
 
                     positionX -= velocityX * ratio * time_delta
                     positionY -= velocityY * ratio * time_delta
 
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
+                    indexMesh += 2
+
+                    positionXLast = positionX
+                    positionYLast = positionY
+                    velocityXLast = velocityX
+                    velocityYLast = velocityY
+
                     applyRoughNormal(scratchNormal, -PI_HALF, roughness)
+
+                    scratchReflection.x = velocityX
+                    scratchReflection.y = velocityY
                     reflect(scratchReflection, scratchNormal)
 
                     velocityX = scratchReflection.x * elasticity
@@ -379,12 +506,42 @@ function Simulation({configuration}) {
 
                     positionX += velocityX * (1 - ratio) * time_delta
                     positionY += velocityY * (1 - ratio) * time_delta
+
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
+                    mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
+                    mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
+                    indexMesh += 2
+
+                    positionXLast = positionX
+                    positionYLast = positionY
+                    velocityXLast = velocityX
+                    velocityYLast = velocityY
                 }
 
                 particles[i_current + OFFSET_PARTICLE_POSITION_X] = positionX
                 particles[i_current + OFFSET_PARTICLE_POSITION_Y] = positionY
                 particles[i_current + OFFSET_PARTICLE_VELOCITY_X] = velocityX
                 particles[i_current + OFFSET_PARTICLE_VELOCITY_Y] = velocityY
+
+                mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionXLast
+                mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionYLast
+                mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityXLast
+                mesh[indexMesh * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityYLast
+                mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_X] = positionX
+                mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_POSITION_Y] = positionY
+                mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_X] = velocityX
+                mesh[(indexMesh + 1) * STRIDE_MESH + OFFSET_MESH_VELOCITY_Y] = velocityY
+                indexMesh += 2
+
+                positionXLast = positionX
+                positionYLast = positionY
+                velocityXLast = velocityX
+                velocityYLast = velocityY
             }
         }
 
@@ -400,17 +557,15 @@ function Simulation({configuration}) {
             gl.uniform2f(resolutionUniformLocation, canvas.width, canvas.height)
 
             gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
-
-            gl.bufferData(gl.ARRAY_BUFFER, particles.length * 4, gl.DYNAMIC_DRAW)
-            gl.bufferSubData(gl.ARRAY_BUFFER, 0, particles)
+            gl.bufferSubData(gl.ARRAY_BUFFER, 0, mesh)
 
             gl.enableVertexAttribArray(positionAttributeLocation)
-            gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, STRIDE_PARTICLES * 4, 0)
+            gl.vertexAttribPointer(positionAttributeLocation, 2, gl.FLOAT, false, STRIDE_MESH * 4, 0)
 
             gl.enableVertexAttribArray(velocityAttributeLocation)
-            gl.vertexAttribPointer(velocityAttributeLocation, 2, gl.FLOAT, false, STRIDE_PARTICLES * 4, 2 * 4)
+            gl.vertexAttribPointer(velocityAttributeLocation, 2, gl.FLOAT, false, STRIDE_MESH * 4, 2 * 4)
 
-            gl.drawArrays(gl.LINES, 0, particles.length / STRIDE_PARTICLES)
+            gl.drawArrays(gl.LINES, 0, mesh.length / STRIDE_MESH)
         }
 
         let time_last = 0;
@@ -430,8 +585,8 @@ function Simulation({configuration}) {
         animation_frame_id = requestAnimationFrame(loop)
 
         return () => {
-            window.removeEventListener("resize", resize)
             cancelAnimationFrame(animation_frame_id)
+            window.removeEventListener("resize", resize)
         }
     }, [configuration.numberOfParticles, canvasReference])
 
