@@ -20,6 +20,8 @@ function Controls({configuration, onChange}) {
 }
 
 function Application() {
+
+
     const [configuration, setConfiguration] = useState({
         numberOfParticles: 10000,
         gravitation: 2500.0,

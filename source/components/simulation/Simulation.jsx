@@ -1,5 +1,7 @@
 import {useEffect, useRef} from "react"
 
+import {useSettings} from "../state"
+
 import shader_simulation_vertex_source from "./shader/simulation.vsh?raw"
 import shader_simulation_fragment_source from "./shader/simulation.fsh?raw"
 
@@ -57,12 +59,14 @@ function onTouchCancel(event, vertices) {
 
 function Simulation({configuration}) {
 
-    const canvasReference = useRef(null)
+    const numberOfParticles = useSettings((state) => state.numberOfParticles)
+    const gravitation = () => useSettings.getState().gravitation
+    const gravitationRadius = () => useSettings.getState().gravitationRadius
+    const friction = () => useSettings.getState().friction
+    const elasticity = () => useSettings.getState().elasticity
+    const roughness = () => useSettings.getState().roughness
 
-    const configurationReference = useRef(configuration)
-    useEffect(() => {
-        configurationReference.current = configuration;
-    }, [configuration]);
+    const canvasReference = useRef(null)
 
     useEffect(() => {
         const canvas = canvasReference.current
@@ -90,7 +94,7 @@ function Simulation({configuration}) {
             const program = gl.createProgram()
             gl.attachShader(program, shader_vertex)
             gl.attachShader(program, shader_fragment)
-            if(lambda)
+            if (lambda)
                 lambda(gl, program)
             gl.linkProgram(program)
             const success = gl.getProgramParameter(program, gl.LINK_STATUS)
@@ -113,17 +117,16 @@ function Simulation({configuration}) {
         const shader_particle_fragment = createShader(gl, gl.FRAGMENT_SHADER, shader_particle_fragment_source)
         const program_particle = createProgram(gl, shader_particle_vertex, shader_particle_fragment)
 
-        const NUMBER_OF_PARTICLES = 3_000_000
         const NUMBER_OF_FLOATS = 4
-        const particles = new Float32Array(NUMBER_OF_PARTICLES * NUMBER_OF_FLOATS)
-        for(let index = 0; index < NUMBER_OF_PARTICLES; index++) {
+        const particles = new Float32Array(numberOfParticles * NUMBER_OF_FLOATS)
+        for (let index = 0; index < numberOfParticles; index++) {
             particles[index * 4] = Math.random() * 800.0
             particles[index * 4 + 1] = Math.random() * 800.0
         }
 
         const buffers = [gl.createBuffer(), gl.createBuffer()]
         const vaos = [gl.createVertexArray(), gl.createVertexArray()]
-        for(let index = 0; index < 2; index++) {
+        for (let index = 0; index < 2; index++) {
             const vao = vaos[index]
             gl.bindVertexArray(vao)
 
@@ -146,6 +149,12 @@ function Simulation({configuration}) {
         let index_a = 0
         let index_b = 1
 
+        const uniform_gravitation = gl.getUniformLocation(program_simulation, "u_gravitation");
+        const uniform_gravitation_radius = gl.getUniformLocation(program_simulation, "u_gravitation_radius");
+        const uniform_friction = gl.getUniformLocation(program_simulation, "u_friction");
+        const uniform_elasticity = gl.getUniformLocation(program_simulation, "u_elasticity");
+        const uniform_roughness = gl.getUniformLocation(program_simulation, "u_roughness");
+        const uniform_world_size = gl.getUniformLocation(program_simulation, "u_world_size");
         const uniform_time_delta = gl.getUniformLocation(program_simulation, "u_time_delta");
         const uniform_mouse_position = gl.getUniformLocation(program_simulation, "u_mouse_position");
         const uniform_mouse_enabled = gl.getUniformLocation(program_simulation, "u_mouse_enabled");
@@ -154,6 +163,7 @@ function Simulation({configuration}) {
         const transform_feedback = gl.createTransformFeedback()
 
         const canvasParent = canvas.parentNode
+
         function resize() {
             canvas.width = canvasParent.offsetWidth
             canvas.height = canvasParent.offsetHeight
@@ -166,8 +176,9 @@ function Simulation({configuration}) {
         let mouse_position_x = 0
         let mouse_position_y = 0
         let mouse_enabled = false
+
         function onMouseDown(event, vertices) {
-            if(mouse_enabled)
+            if (mouse_enabled)
                 return
 
             const rectangle = event.target.getBoundingClientRect()
@@ -177,7 +188,7 @@ function Simulation({configuration}) {
         }
 
         function onMouseMove(event, vertices) {
-            if(!mouse_enabled)
+            if (!mouse_enabled)
                 return
 
             const rectangle = event.target.getBoundingClientRect()
@@ -208,12 +219,19 @@ function Simulation({configuration}) {
 
         let time_last_seconds = 0
         let animation_frame_id = 0
+
         function loop(time_now_milliseconds) {
             const time_now_seconds = time_now_milliseconds / 1000.0
             const time_delta_seconds = time_now_seconds - time_last_seconds
             time_last_seconds = time_now_seconds
 
             gl.useProgram(program_simulation)
+            gl.uniform1f(uniform_gravitation, gravitation())
+            gl.uniform1f(uniform_gravitation_radius, gravitationRadius())
+            gl.uniform1f(uniform_friction, friction())
+            gl.uniform1f(uniform_elasticity, elasticity())
+            gl.uniform1f(uniform_roughness, roughness())
+            gl.uniform2f(uniform_world_size, canvas.width, canvas.height)
             gl.uniform1f(uniform_time_delta, time_delta_seconds)
             gl.uniform2f(uniform_mouse_position, mouse_position_x, mouse_position_y)
             gl.uniform1i(uniform_mouse_enabled, mouse_enabled)
@@ -226,7 +244,7 @@ function Simulation({configuration}) {
 
             gl.enable(gl.RASTERIZER_DISCARD)
             gl.beginTransformFeedback(gl.POINTS)
-            gl.drawArrays(gl.POINTS, 0, NUMBER_OF_PARTICLES)
+            gl.drawArrays(gl.POINTS, 0, numberOfParticles)
             gl.endTransformFeedback()
             gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null)
             gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null)
@@ -238,7 +256,7 @@ function Simulation({configuration}) {
             gl.useProgram(program_particle)
             gl.uniform2f(uniform_resolution, canvas.width, canvas.height)
             gl.bindVertexArray(vao_b)
-            gl.drawArrays(gl.POINTS, 0, NUMBER_OF_PARTICLES)
+            gl.drawArrays(gl.POINTS, 0, numberOfParticles)
 
             let index_temporary = index_a
             index_a = index_b
@@ -253,7 +271,7 @@ function Simulation({configuration}) {
             cancelAnimationFrame(animation_frame_id)
             window.removeEventListener("resize", resize)
         }
-    }, [configuration.numberOfParticles, canvasReference])
+    }, [numberOfParticles, canvasReference])
 
     return <canvas className="grow bg-black select-none touch-none" ref={canvasReference}></canvas>
 }

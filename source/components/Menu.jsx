@@ -1,5 +1,6 @@
 import {X} from "lucide-react"
 import {Input, Card} from "."
+import {useSettings} from "./state.js"
 
 function Field({label, accent, children}) {
     return (
@@ -25,6 +26,24 @@ function Menu({configuration, onChange, onClose}) {
         onChange(name, parsed)
     }
 
+    const numberOfParticles = useSettings((state) => state.numberOfParticles)
+    const setNumberOfParticles = useSettings((state) => state.setNumberOfParticles)
+
+    const gravitation = useSettings((state) => state.gravitation)
+    const setGravitation = useSettings((state) => state.setGravitation)
+
+    const gravitationRadius = useSettings((state) => state.gravitationRadius)
+    const setGravitationRadius = useSettings((state) => state.setGravitationRadius)
+
+    const friction = useSettings((state) => state.friction)
+    const setFriction = useSettings((state) => state.setFriction)
+
+    const elasticity = useSettings((state) => state.elasticity)
+    const setElasticity = useSettings((state) => state.setElasticity)
+
+    const roughness = useSettings((state) => state.roughness)
+    const setRoughness = useSettings((state) => state.setRoughness)
+
     return (
         <Card className="flex flex-col absolute inset-0 md:w-100 overflow-scroll sm:w-full p-3 m-3">
             <div className="grow flex flex-col gap-3">
@@ -38,24 +57,43 @@ function Menu({configuration, onChange, onClose}) {
 
                 <Card className="flex flex-col gap-3 p-3">
                     <h2 className="text-3xl font-bold text-center select-none">Settings</h2>
+
                     <Field label="Number of Particles">
-                        <Input name="numberOfParticles" type="number" value={configuration.numberOfParticles} onChange={handleChange}/>
+                        <Input name="numberOfParticles" type="number" value={numberOfParticles} onChange={(event) => {
+                            setNumberOfParticles(event.target.value)
+                        }}/>
                     </Field>
+
                     <Field label="Gravitation" accent="px / s²">
-                        <Input name="gravitation" type="number" value={configuration.gravitation} step={0.01} onChange={handleChange}/>
+                        <Input name="gravitation" type="number" value={gravitation} step={0.01} onChange={(event) => {
+                            setGravitation(event.target.value)
+                        }}/>
                     </Field>
+
                     <Field label="Gravitation Radius" accent="px">
-                        <Input name="gravitationRadius" type="number" value={configuration.gravitationRadius} min={1} step={0.01} onChange={handleChange}/>
+                        <Input name="gravitationRadius" type="number" value={gravitationRadius} min={1} step={0.01} onChange={(event) => {
+                            setGravitationRadius(event.target.value)
+                        }}/>
                     </Field>
+
                     <Field label="Friction" accent="px / s">
-                        <Input name="friction" type="number" value={configuration.friction} step={0.01} onChange={handleChange}/>
+                        <Input name="friction" type="number" value={friction} step={0.01} onChange={(event) => {
+                            setFriction(event.target.value)
+                        }}/>
                     </Field>
-                    <Field label="Elasticity" accent={`${Math.round(configuration.elasticity * 100)}%`}>
-                        <Input name="elasticity" type="range" value={configuration.elasticity} min={0} max={1} step={0.01} onChange={handleChange}/>
+
+                    <Field label="Elasticity" accent={`${Math.round(elasticity * 100)}%`}>
+                        <Input name="elasticity" type="range" value={elasticity} min={0} max={1} step={0.01} onChange={(event) => {
+                            setElasticity(event.target.value)
+                        }}/>
                     </Field>
-                    <Field label="Roughness" accent={`${Math.round(configuration.roughness * 100)}%`}>
-                        <Input name="roughness" type="range" value={configuration.roughness} min={0} max={1} step={0.01} onChange={handleChange}/>
+
+                    <Field label="Roughness" accent={`${Math.round(roughness * 100)}%`}>
+                        <Input name="roughness" type="range" value={roughness} min={0} max={1} step={0.01} onChange={(event) => {
+                            setRoughness(event.target.value)
+                        }}/>
                     </Field>
+
                     <Field label="Reset Simulation">
                         <Input type="button" value="Reset"/>
                     </Field>
